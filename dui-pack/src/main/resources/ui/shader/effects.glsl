@@ -30,9 +30,106 @@ vec4 slotSymbol(vec2 q,int id){
     }
     return c;
 }
+
+float roundRect(vec2 p,vec2 halfSize,float radius){vec2 d=abs(p)-halfSize+radius;return length(max(d,vec2(0)))+min(max(d.x,d.y),0.0)-radius;}
+vec3 cardPalette(int id){return id==1?vec3(.19,.64,.53):id==2?vec3(.89,.38,.43):id==3?vec3(.56,.42,.77):vec3(.15,.29,.37);}
+bool rankGlyph(vec2 p,int rank){
+    // Compact 3x5 lettering; T denotes ten, preserving legibility at small GUI scales.
+    int bits=0;
+    if(rank==2)bits=7|(4<<3)|(7<<6)|(1<<9)|(7<<12);
+    if(rank==3)bits=7|(4<<3)|(7<<6)|(4<<9)|(7<<12);
+    if(rank==4)bits=5|(5<<3)|(7<<6)|(4<<9)|(4<<12);
+    if(rank==5)bits=7|(1<<3)|(7<<6)|(4<<9)|(7<<12);
+    if(rank==6)bits=7|(1<<3)|(7<<6)|(5<<9)|(7<<12);
+    if(rank==7)bits=7|(4<<3)|(4<<6)|(2<<9)|(2<<12);
+    if(rank==8)bits=7|(5<<3)|(7<<6)|(5<<9)|(7<<12);
+    if(rank==9)bits=7|(5<<3)|(7<<6)|(4<<9)|(7<<12);
+    if(rank==10)bits=7|(2<<3)|(2<<6)|(2<<9)|(2<<12);
+    if(rank==11)bits=4|(4<<3)|(4<<6)|(5<<9)|(7<<12);
+    if(rank==12)bits=7|(5<<3)|(5<<6)|(3<<9)|(6<<12);
+    if(rank==13)bits=5|(5<<3)|(3<<6)|(5<<9)|(5<<12);
+    if(rank==14)bits=2|(5<<3)|(7<<6)|(5<<9)|(5<<12);
+    ivec2 cell=ivec2(floor(p));return cell.x>=0&&cell.x<3&&cell.y>=0&&cell.y<5&&((bits>>(cell.y*3+cell.x))&1)!=0;
+}
+bool cardSuit(vec2 p,int suit){
+    if(suit==1)return abs(p.x)*.8+abs(p.y)<.83;
+    if(suit==2)return (length(p-vec2(-.32,-.25))<.43||length(p-vec2(.32,-.25))<.43||(p.y>=-.18&&p.y<.78&&abs(p.x)<(.78-p.y)*.85));
+    if(suit==3){vec2 h=vec2(p.x,-p.y);return (length(h-vec2(-.32,-.12))<.39||length(h-vec2(.32,-.12))<.39||(h.y>=-.12&&h.y<.85&&abs(h.x)<(.85-h.y)*.75))||box(p,vec2(0,.60),vec2(.13,.25));}
+    return length(p-vec2(0,-.40))<.34||length(p-vec2(-.34,.12))<.35||length(p-vec2(.34,.12))<.35||box(p,vec2(0,.56),vec2(.12,.28));
+}
+vec4 playingCard(vec2 q,vec2 size,int a,int b,float t,bool live){
+    int id=a&63,mode=(a>>13)&3,palette=(b>>13)&3;bool down=((a>>6)&1)!=0,highlighted=((a>>7)&1)!=0;
+    float delay=float((a>>8)&31)/10.0,duration=max(.05,float(b&127)/20.0),lift=float((b>>7)&63);
+    float u=live?clamp((t-delay)/duration,0.0,1.0):1.0;
+    if(mode==1&&live&&t<delay)return vec4(0);
+    float h=size.y-lift-6.0,w=min(size.x-4.0,h*.66),compression=1.0,angle=0.0;
+    vec2 center=vec2(size.x*.5,lift+h*.5+1.0);
+    bool back=down;
+    if(mode==1){center.y-=lift*pow(1.0-u,3.0);angle=(1.0-u)*-.14;}
+    if(mode==2){compression=max(.045,abs(cos(u*3.141593)));if(u<.5)back=!down;center.y-=sin(u*3.141593)*3.0;}
+    vec2 p=q-center;p=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*p;
+    p.x/=compression;vec2 halfSize=vec2(w,h)*.5;float r=max(1.1,w*.075),dist=roundRect(p,halfSize,r);
+    vec4 c=vec4(0);
+    float shadow=roundRect((q-center-vec2(1.3,2.8))/vec2(compression,1),halfSize,r);
+    if(shadow<1.0)c=vec4(.025,.04,.055,.55*(1.0-smoothstep(-1.0,1.0,shadow)));
+    if(dist<=0.0){
+        c=vec4(mix(vec3(.96,.92,.83),vec3(1,.985,.94),clamp(.6-p.y/h,0.0,1.0)),1);
+        if(dist>-.8)c.rgb=highlighted?vec3(1,.80,.39):vec3(.72,.69,.60);
+        if(back){
+            c.rgb=cardPalette(palette);if(dist> -1.6)c.rgb=vec3(.94,.78,.46);
+            float weave=mod(floor((p.x+p.y)/3.0)+floor((p.x-p.y)/3.0),2.0);
+            if(dist< -2.5)c.rgb*=.88+weave*.15;
+            float diamond=abs(p.x)*.8+abs(p.y)*.6;
+            if(diamond<w*.25&&diamond>w*.19)c.rgb=vec3(.95,.82,.55);
+            if(length(p)<w*.08)c.rgb=vec3(.93,.96,.86);
+        }else if(id<52){
+            int rank=id%13+2,suit=id/13;vec3 ink=(suit==1||suit==2)?vec3(.86,.25,.33):vec3(.13,.22,.29);
+            float unit=max(.85,w/27.0);vec2 corner=p+halfSize-vec2(2.4,2.4);
+            if(rankGlyph(corner/unit,rank)||cardSuit((corner-vec2(1.5,7.0)*unit)/(1.9*unit),suit))c.rgb=ink;
+            vec2 bottom=-p+halfSize-vec2(2.4,2.4);
+            if(rankGlyph(bottom/unit,rank)||cardSuit((bottom-vec2(1.5,7.0)*unit)/(1.9*unit),suit))c.rgb=ink;
+            if(cardSuit(p/(w*.24),suit))c.rgb=ink;
+            if(rank>=11&&rank<=13){float ring=abs(p.x)*.8+abs(p.y)*.55;if(ring>w*.31&&ring<w*.34)c.rgb=vec3(.79,.58,.27);}
+        }else{
+            c.rgb=vec3(.06,.20,.21);if(dist>-.7)c.rgb=vec3(.28,.44,.40);
+            if(abs(p.x)*.8+abs(p.y)*.5<w*.15)c.rgb=vec3(.32,.49,.43);
+        }
+        if(highlighted&&dist<-.9&&dist>-2.0)c.rgb=vec3(1,.82,.43);
+    }
+    return c;
+}
+vec2 chipAnchor(int id,vec2 size){
+    vec2 v=id==0?vec2(.13,.14):id==1?vec2(.87,.14):id==2?vec2(.13,.86):id==3?vec2(.87,.86):id==4?vec2(.5,.14):id==5?vec2(.5,.86):id==6?vec2(.13,.5):vec2(.87,.5);return v*size;
+}
+vec4 chipDisc(vec2 p,float radius,vec3 paint){
+    vec4 c=vec4(0);float d=length(p/vec2(radius,radius*.44));
+    float edge=length((p-vec2(0,1.5))/vec2(radius,radius*.44));
+    if(edge<1.06)c=vec4(paint*.42,1);
+    if(d<1.0){c=vec4(paint,1);float angle=atan(p.y/.44,p.x);if(d>.73&&d<.95&&cos(angle*6.0)>.0)c.rgb=vec3(1,.94,.79);if(d<.54&&d>.42)c.rgb=vec3(1,.94,.79);if(d<.32)c.rgb=mix(paint,vec3(1,.96,.85),.23);}
+    return c;
+}
+vec4 chipStack(vec2 q,vec2 size,int a,int b,float t,bool live){
+    int count=a&31,palette=(a>>5)&3,mode=(b>>7)&3;float duration=max(.05,float(b&127)/20.0),delay=float((b>>9)&63)/10.0;
+    if(count==0)return vec4(0);
+    vec3 paint=palette==1?vec3(.35,.83,.66):palette==2?vec3(.94,.36,.43):palette==3?vec3(.60,.45,.87):vec3(.96,.73,.33);
+    vec2 dest=chipAnchor((a>>10)&7,size),source=chipAnchor((a>>7)&7,size);float radius=clamp(min(size.x,size.y)*.085,2.2,5.2);vec4 c=vec4(0);
+    int layers=min(count,7);
+    for(int j=0;j<7;j++){
+        if(j>=layers)break;
+        float u=live&&mode==1?clamp((t-delay-float(j)*.035)/duration,0.0,1.0):1.0;
+        vec2 at=mode==1?mix(source,dest,1.0-pow(1.0-u,3.0)):size*.5;
+        if(mode==1)at.y-=sin(u*3.141593)*min(18.0,size.y*.25);
+        at+=vec2(sin(float(j)*2.0)*(1.0-u)*radius*.5,-float(j)*1.1);
+        vec4 chip=chipDisc(q-at,radius,paint);if(chip.a>0)c=chip;
+    }
+    return c;
+}
+
 vec4 effectPixel(vec2 q,vec2 size,int kind,int a,int b,float age,bool motion,bool eventLive){
     if(any(lessThan(q,vec2(0)))||any(greaterThanEqual(q,size)))return vec4(0);
     float t=eventLive&&motion?max(0.0,age):100.0;vec4 c=vec4(0);
+    if(kind==6)return playingCard(q,size,a,b,t,eventLive&&motion);
+    if(kind==7)return chipStack(q,size,a,b,t,eventLive&&motion);
     if(kind==1){
         float shade=.92-.17*pow(abs(q.y/size.y-.5)*2.0,2.0);c=vec4(vec3(1,.96,.83)*shade,1);
         if(q.x<2.0||q.x>size.x-2.0)c=vec4(.70,.52,.35,1);

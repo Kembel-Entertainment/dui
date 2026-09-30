@@ -62,6 +62,8 @@ public final class MenuTemplate {
           "layer",
           "surface",
           "rect",
+          "playing-card",
+          "chip-stack",
           "reel",
           "lever",
           "particles",
@@ -146,7 +148,14 @@ public final class MenuTemplate {
           "clip-x",
           "clip-y",
           "clip-width",
-          "clip-height");
+          "clip-height",
+          "image-layer",
+          "face-down",
+          "animation",
+          "lift",
+          "palette",
+          "from",
+          "to");
   private static final Pattern BIND = Pattern.compile("\\{\\{([a-zA-Z_][a-zA-Z_0-9.]*)}}");
   private final Element root;
   private final Map<String, Map<String, String>> styles = new HashMap<>();
@@ -417,7 +426,18 @@ public final class MenuTemplate {
       String source = n.s("source", "");
       var raster = images.get(source);
       if (raster == null) throw new IllegalArgumentException("Missing image source: " + source);
-      c.image(n.s("id", source), x, y, w, h, n.n("pixel-size", 3), raster);
+      String imageLayer = n.s("image-layer", "foreground");
+      if (!java.util.Set.of("background", "foreground").contains(imageLayer))
+        throw new IllegalArgumentException("Image layer must be background or foreground");
+      c.image(
+          n.s("id", source),
+          x,
+          y,
+          w,
+          h,
+          n.n("pixel-size", 3),
+          raster,
+          imageLayer.equals("background"));
       if (!n.s("action", "").isBlank())
         c.hit(
             new Canvas.Hit(

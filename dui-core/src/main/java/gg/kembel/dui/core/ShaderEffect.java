@@ -10,7 +10,9 @@ public record ShaderEffect(
     LEVER(2),
     COINS(3),
     LIGHTS(4),
-    CONFETTI(5);
+    CONFETTI(5),
+    PLAYING_CARD(6),
+    CHIP_STACK(7);
     public final int code;
 
     Kind(int code) {
@@ -24,6 +26,14 @@ public record ShaderEffect(
       case LEVER -> parameter0;
       case COINS -> (parameter0 >> 9) == 0 ? 0 : ((parameter1 >> 9) & 63) * 2 + 94;
       case LIGHTS -> 0;
+      case PLAYING_CARD ->
+          (parameter0 >> 13) == 0 ? 0 : ((parameter0 >> 8) & 31) * 2 + (parameter1 & 127);
+      case CHIP_STACK ->
+          ((parameter1 >> 7) & 3) == 0 || (parameter0 & 31) == 0
+              ? 0
+              : ((parameter1 >> 9) & 63) * 2
+                  + (parameter1 & 127)
+                  + (int) Math.ceil((Math.min(parameter0 & 31, 7) - 1) * .7);
       case CONFETTI -> ((parameter1 >> 9) & 63) * 2 + 72;
     };
   }

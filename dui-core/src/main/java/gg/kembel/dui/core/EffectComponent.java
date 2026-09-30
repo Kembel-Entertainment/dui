@@ -5,7 +5,8 @@ final class EffectComponent {
   private EffectComponent() {}
 
   static boolean supports(String tag) {
-    return java.util.Set.of("reel", "lever", "particles", "lights").contains(tag);
+    return java.util.Set.of("reel", "lever", "particles", "lights", "playing-card", "chip-stack")
+        .contains(tag);
   }
 
   private static int number(MenuTemplate.Node n, String key, int fallback, int min, int max) {
@@ -15,11 +16,69 @@ final class EffectComponent {
     return value;
   }
 
+  private static int choice(MenuTemplate.Node n, String key, String fallback, String... choices) {
+    String value = n.s(key, fallback);
+    for (int i = 0; i < choices.length; i++) if (choices[i].equals(value)) return i;
+    throw new IllegalArgumentException("Unknown " + key + ": " + value);
+  }
+
   static void draw(Canvas c, MenuTemplate.Node n, int x, int y, int w, int h) {
     String id = n.s("id", "");
     ShaderEffect.Kind kind;
     int a, b;
     switch (n.type()) {
+      case "playing-card" -> {
+        int card = number(n, "value", -1, -1, 51), delay = number(n, "delay", 0, 0, 62);
+        if (delay % 2 != 0) throw new IllegalArgumentException("Card delay uses even ticks");
+        int mode = choice(n, "animation", "static", "static", "deal", "flip");
+        int palette = choice(n, "palette", "mint", "classic", "mint", "coral", "violet");
+        int duration = number(n, "duration", 18, 1, 127), lift = number(n, "lift", 12, 0, 63);
+        if (w < 12 || h < lift + 18)
+          throw new IllegalArgumentException("Card needs width >=12 and height >= lift+18");
+        kind = ShaderEffect.Kind.PLAYING_CARD;
+        a =
+            (card < 0 ? 63 : card)
+                | (n.b("face-down") ? 1 << 6 : 0)
+                | (n.b("active") ? 1 << 7 : 0)
+                | ((delay / 2) << 8)
+                | (mode << 13);
+        b = duration | (lift << 7) | (palette << 13);
+      }
+      case "chip-stack" -> {
+        int count = number(n, "count", 0, 0, 31), delay = number(n, "delay", 0, 0, 126);
+        if (delay % 2 != 0) throw new IllegalArgumentException("Chip delay uses even ticks");
+        int mode = choice(n, "animation", "static", "static", "transfer");
+        int palette = choice(n, "palette", "gold", "gold", "mint", "coral", "violet");
+        int from =
+            choice(
+                n,
+                "from",
+                "bottom",
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right",
+                "top",
+                "bottom",
+                "left",
+                "right");
+        int to =
+            choice(
+                n,
+                "to",
+                "top",
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right",
+                "top",
+                "bottom",
+                "left",
+                "right");
+        kind = ShaderEffect.Kind.CHIP_STACK;
+        a = count | (palette << 5) | (from << 7) | (to << 10);
+        b = number(n, "duration", 18, 1, 127) | (mode << 7) | ((delay / 2) << 9);
+      }
       case "reel" -> {
         if (!n.s("symbols", "arcade").equals("arcade"))
           throw new IllegalArgumentException("Unknown reel symbol set");

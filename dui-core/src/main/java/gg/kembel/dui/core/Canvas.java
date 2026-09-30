@@ -17,7 +17,19 @@ public final class Canvas {
   public record Item(String id, int x, int y, int size) {}
 
   public record Image(
-      String id, int x, int y, int width, int height, int pixelSize, RasterImage raster) {}
+      String id,
+      int x,
+      int y,
+      int width,
+      int height,
+      int pixelSize,
+      RasterImage raster,
+      boolean background) {
+    public Image(
+        String id, int x, int y, int width, int height, int pixelSize, RasterImage raster) {
+      this(id, x, y, width, height, pixelSize, raster, false);
+    }
+  }
 
   public record Confetti(String itemId, long startedAt) {}
 
@@ -154,6 +166,18 @@ public final class Canvas {
   }
 
   public void image(String id, int x, int y, int w, int h, int pixelSize, RasterImage raster) {
+    image(id, x, y, w, h, pixelSize, raster, false);
+  }
+
+  public void image(
+      String id,
+      int x,
+      int y,
+      int w,
+      int h,
+      int pixelSize,
+      RasterImage raster,
+      boolean background) {
     bounds(x, y, w, h);
     if (id == null
         || id.isBlank()
@@ -167,7 +191,15 @@ public final class Canvas {
     if (images.stream().mapToInt(i -> i.raster.width * i.raster.height).sum() + columns * rows
         > 16_384) throw new IllegalArgumentException("Canvas image pixel budget exceeded");
     images.add(
-        new Image(id, x, y, w, h, pixelSize, Objects.requireNonNull(raster).cover(columns, rows)));
+        new Image(
+            id,
+            x,
+            y,
+            w,
+            h,
+            pixelSize,
+            Objects.requireNonNull(raster).cover(columns, rows),
+            background));
   }
 
   public Hit at(int x, int y) {

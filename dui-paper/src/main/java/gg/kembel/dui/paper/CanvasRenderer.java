@@ -80,6 +80,7 @@ public final class CanvasRenderer {
       if (y == 0 && canvas.hideFocusOutline)
         line.append(run("" + FocusMarker.GLYPH, "focus_guard", FocusMarker.payload(canvas)))
             .append(shift(-FocusMarker.ADVANCE));
+      images(line, canvas, y, true);
       for (var p : canvas.paints) {
         if (p.y() + p.height() <= y || p.y() >= y + 9) continue;
         if (p.text() != null || p.icon() != null) {
@@ -116,30 +117,7 @@ public final class CanvasRenderer {
           }
         }
       }
-      for (var image : canvas.images) {
-        int cell = image.pixelSize();
-        for (int row = Math.max(0, (y - image.y()) / cell); row < image.raster().height; row++) {
-          int py = image.y() + row * cell;
-          if (py >= y + 9 || py >= image.y() + image.height()) break;
-          int top = Math.max(py, y),
-              bottom = Math.min(Math.min(py + cell, y + 9), image.y() + image.height());
-          if (bottom <= top) continue;
-          line.append(shift(image.x()));
-          for (int col = 0; col < image.raster().width; ) {
-            int columnStart = col, color = image.raster().rgb(col++, row);
-            while (col < image.raster().width && image.raster().rgb(col, row) == color) col++;
-            int pixels = Math.min(col * cell, image.width()) - columnStart * cell;
-            var glyphs = new StringBuilder();
-            while (pixels > 0) {
-              int bit = 31 - Integer.numberOfLeadingZeros(Math.min(pixels, 256));
-              glyphs.append(GlyphAtlas.rectangle(bit, bottom - top)).append(GlyphFont.shift(-1));
-              pixels -= 1 << bit;
-            }
-            line.append(run(glyphs.toString(), "canvas_" + (top - y), color));
-          }
-          line.append(shift(-image.x() - image.width()));
-        }
-      }
+      images(line, canvas, y, false);
       for (var head : canvas.heads)
         if (head.y() == y)
           line.append(shift(head.x()))
@@ -151,5 +129,37 @@ public final class CanvasRenderer {
       if (y + 9 < canvas.height) result.append(Component.newline());
     }
     return result.build();
+  }
+
+  private static void images(
+      net.kyori.adventure.text.TextComponent.Builder line,
+      Canvas canvas,
+      int y,
+      boolean background) {
+    for (var image : canvas.images) {
+      if (image.background() != background) continue;
+      int cell = image.pixelSize();
+      for (int row = Math.max(0, (y - image.y()) / cell); row < image.raster().height; row++) {
+        int py = image.y() + row * cell;
+        if (py >= y + 9 || py >= image.y() + image.height()) break;
+        int top = Math.max(py, y),
+            bottom = Math.min(Math.min(py + cell, y + 9), image.y() + image.height());
+        if (bottom <= top) continue;
+        line.append(shift(image.x()));
+        for (int col = 0; col < image.raster().width; ) {
+          int columnStart = col, color = image.raster().rgb(col++, row);
+          while (col < image.raster().width && image.raster().rgb(col, row) == color) col++;
+          int pixels = Math.min(col * cell, image.width()) - columnStart * cell;
+          var glyphs = new StringBuilder();
+          while (pixels > 0) {
+            int bit = 31 - Integer.numberOfLeadingZeros(Math.min(pixels, 256));
+            glyphs.append(GlyphAtlas.rectangle(bit, bottom - top)).append(GlyphFont.shift(-1));
+            pixels -= 1 << bit;
+          }
+          line.append(run(glyphs.toString(), "canvas_" + (top - y), color));
+        }
+        line.append(shift(-image.x() - image.width()));
+      }
+    }
   }
 }

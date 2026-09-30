@@ -70,7 +70,7 @@ An open dropdown requires nonempty `select` and `dismiss` actions. Its popup occ
 | `head` | `player=self`, `hat=true`, optional `label`; natural height 18 | Native 8×8 portrait. Source can be player name, `uuid:<uuid>` or `texture:<namespace:key>`. Place on a 9-pixel row. |
 | `item` | Required `id`; `size` defaults to the smaller allocated dimension; `burst-start=-1` | Requires `ViewModel.items[id]`. Native transport size 1–127; the placement must fit the canvas unless an explicit clip is supplied. Visual only: an `action` on `dui-item` does not create a hit. |
 | `slot` | Required explicit `id`, `label`, `count=1`, `durability=-1`, `active=false`, `action`, `value`, `tooltip`; natural height 63 | At least 44×63. Requires `ViewModel.items[id]`; draws a 36-pixel native item and a full-slot hit. Count 1–99; durability -1 hides the bar, otherwise 0–1. Payload uses `value`, not `payload`. |
-| `image` | Required `source`, `id` defaults to source, `pixel-size=3`, optional `action`, `payload`, `tooltip`, `locked=false` | Resolves `ViewModel.images[source]`; no HTTP fetch occurs in this tag. Cell size 1–8; total sampled pixels per canvas ≤16,384. |
+| `image` | Required `source`, `id` defaults to source, `pixel-size=3`, `image-layer=foreground`, optional `action`, `payload`, `tooltip`, `locked=false` | Resolves `ViewModel.images[source]`; no HTTP fetch occurs in this tag. Cell size 1–8; total sampled pixels per canvas ≤16,384. |
 
 ItemStack components supply model/profile/banner/glint data. The `enchanted` template attribute does not configure the native stack. Slot count and durability are visual values; keep them consistent with your own ItemStack and business state. Native wrappers reserve CustomModelData colour entries from index 32 onwards. `__effects` is reserved for the shared effect carrier.
 
@@ -80,7 +80,7 @@ Supply all four `clip-x`, `clip-y`, `clip-width`, `clip-height` attributes on `d
 
 A nonnegative `burst-start` starts finite item confetti using a world game-time tick; only one item confetti carrier is supported per canvas. Do not restart that tick on every unrelated update. For a large 3D player head, use a player-head ItemStack through `item`/`slot` rather than enlarging the portrait component.
 
-Runtime rasters are RGB, without per-cell alpha. The raw `RasterImage` constructor accepts dimensions 1–512. `RasterImage.decode` rejects source edges above 4096 or more than 4,000,000 pixels, composites transparency onto `#16171D` and scales the longest edge to at most 256. `image` fills its rectangle with an aspect-preserving centre crop. Keep labels outside its bounds because images draw above normal paints. Supply QR rasters at exactly the sampled dimensions, with integer modules and a quiet zone, to avoid resampling them.
+Runtime rasters are RGB, without per-cell alpha. The raw `RasterImage` constructor accepts dimensions 1–512. `RasterImage.decode` rejects source edges above 4096 or more than 4,000,000 pixels, composites transparency onto `#16171D` and scales the longest edge to at most 256. `image` fills its rectangle with an aspect-preserving centre crop. Foreground images draw above normal paints. Set `image-layer="background"` to draw the raster beneath surfaces/text/controls. Layer order is background images, normal paints, foreground images, native heads/items/effects; this is not arbitrary CSS z-index. Supply QR rasters at exactly the sampled dimensions, with integer modules and a quiet zone, to avoid resampling them.
 
 `ViewModel.links` uses the **hit ID**, not the action name. A nonempty action is still needed to create a clickable hit; the URL takes precedence over the custom callback. Only HTTP(S) links are accepted, using vanilla confirmation.
 
@@ -99,6 +99,8 @@ Each effect requires a unique `id` and a bounded allocated rectangle. At most ei
 | `reel` | `symbols=arcade`, `value=0`, `previous=value`, `sequence=0`, `turns=18+sequence*6`, `duration=45+sequence*11`, `symbol-size=max(1,min(width*.39,height*.42))` truncated to integer | Only arcade symbols; values 0–5, sequence 0–7, turns 6–63, duration/size 1–127. Supply explicit size for large reels. `sequence` supplies timing/turn defaults, not a delay. |
 | `lever` | `duration=18` | 1–127 ticks |
 | `particles` | `effect=coins`, `count=24`, `origin-x=width/2`, `origin-y=height-1`, `delay=70` | `coins` or `confetti`; count 0–63, origin inside local bounds, delay 0–126 in **even ticks**. Lifetime is derived internally, not supplied through `duration`. |
+| `playing-card` | `value=-1`, `face-down=false`, `active=false`, `animation=static`, `duration=18`, `delay=0`, `lift=12`, `palette=mint` | Card ID 0–51, or -1 for an empty slot; suit × 13 + rank − 2 (C,D,H,S, ranks 2–14). `static`, `deal`, `flip`; duration 1–127 ticks; delay 0–62 **even ticks**; lift 0–63 GUI pixels. Width ≥12; height ≥lift+18. Palettes `classic`, `mint`, `coral`, `violet` tint the back. `active` highlights the border. |
+| `chip-stack` | `count=0`, `animation=static`, `duration=18`, `delay=0`, `palette=gold`, `from=bottom`, `to=top` | Count 0–31 (visual layers cap at seven); `static` or `transfer`; duration 1–127 ticks; delay 0–126 **even ticks**. `gold`, `mint`, `coral`, `violet`. Anchors: `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`. Static stack is centred; transfer travels between inset anchors. Transfer lifetime includes the stagger of visible layers: delay + duration + ceil((min(count,7)−1)×0.7) ticks; count=0 is inert. |
 | `lights` | `count=12`, `radius=max(1,height/3)` | Count 1–32, radius 1–15. Supply explicit radius for tall light regions. |
 
 Use only the parameters listed for each effect. Reel `delay`, particle `duration`/`radius`, and light `duration` are not consumed. See [EffectComponent](../dui-core/src/main/java/gg/kembel/dui/core/EffectComponent.java) and [ShaderEffect](../dui-core/src/main/java/gg/kembel/dui/core/ShaderEffect.java) for exact encoding/lifetimes; templates can move and resize these effects without rebuilding the pack.
@@ -112,3 +114,20 @@ Use only the parameters listed for each effect. Reel `delay`, particle `duration
 Templates are limited to 128,000 characters, nesting depth 20 and a 512-node expansion budget per render, including expansion directives. Repeats can hit the canvas/node limits long before 200 items. Compile once where possible, and supply small page-sized lists.
 
 Native text/bool/selection/range inputs are Paper `DialogInput` objects supplied through `DialogOptions`, outside the custom canvas. A template `title` does not set the dialog title; use `DialogOptions.title`. Read submitted values through `ActionContext.response()` and validate them. See the [form recipe](recipes.md#native-form-inputs) and the full [LLM API guide](llm-guide.md).
+
+### Procedural cards and chip transfers
+
+These are visual primitives, independent of poker state. `playing-card` draws an ivory face with rank/suit, an ornate back, rounded edges/shadow and an optional highlighted border. Ten is abbreviated **T** in its compact glyph. A flip starts on the opposite face and finishes on `face-down`; a deal enters from above and finishes at its inset resting position. `lift` reserves top travel space inside the rectangle; it does not move the hit. `value=-1` draws an empty placeholder. Never send a hidden opponent card ID: a face-down effect still carries its value in client-visible data. Send -1 for unknown cards, or use your own anonymous back artwork.
+
+```xml
+<dui-menu width="240" height="108" animation-start="{{tick}}" motion="{{motion}}">
+ <dui-layer height="fill">
+  <dui-playing-card id="ace" x="24" y="9" width="42" height="81"
+    value="38" animation="deal" duration="28" lift="15" palette="mint" />
+  <dui-chip-stack id="bet" x="90" y="18" width="120" height="72"
+    count="5" animation="transfer" from="bottom" to="top" duration="18" />
+ </dui-layer>
+</dui-menu>
+```
+
+All effects share one root clock and one native carrier. Keep already-settled components `animation="static"` when a different event starts; otherwise changing the root tick replays their animations. Rendering does not advance game state or grant payouts. Replace finite modes with `static`/`animation-start=-1` using one guarded completion task. Root `motion=false` immediately shows final poses. Reserve bounds for the full card/flight; clipping happens at those bounds. A seven-card board plus a chip transfer uses all eight effect slots. If you need more simultaneous animated effects, extend the transport budget deliberately rather than adding ad hoc dialog shaders.
