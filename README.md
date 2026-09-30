@@ -93,4 +93,4 @@ Runtime images use RGB-tinted rectangle glyphs. They do not add thumbnails to th
 - Native form inputs retain Minecraft's native dialog layout. Resource packs that replace the same core shaders require integration work.
 - Pack/API versions are matched explicitly; multi-version support and shared-pack coordination across independently versioned plugins are future work.
 
-See [quickstart](docs/quickstart.md), [LLM guide](docs/llm-guide.md), [components](docs/components.md), [architecture](docs/architecture.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Own code is licensed under [MIT](LICENSE).
+See [quickstart](docs/quickstart.md), [LLM guide](docs/llm-guide.md), [components](docs/components.md), [architecture](docs/architecture.md), [rendering protocol](docs/rendering.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Own code is licensed under [MIT](LICENSE).

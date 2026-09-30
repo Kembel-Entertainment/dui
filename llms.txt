@@ -9,6 +9,7 @@
 - [README](README.md): Module overview, local Maven build, embedding and pack generation.
 - [Components](docs/components.md): Supported layout, control, media and effect tags.
 - [Architecture](docs/architecture.md): Canvas rendering, font positioning, native model carriers and callback transport.
+- [Rendering protocol](docs/rendering.md): Negative spacing with Unicode addresses and pen arithmetic, vertical band fonts, invisible hit spans, runtime rasters, native item/shader payload and debugging invariants. Include this for renderer or pack changes.
 - [dui-demo](https://github.com/Kembel-Entertainment/dui-demo): Companion consumer with examples and real-client integration tests.
 
 Own code is MIT licensed. API and pack formats are provisional. No remote Maven release has been published. Check the source for the exact checked-out version; do not invent CSS, browser JavaScript or undocumented methods.

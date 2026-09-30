@@ -1,5 +1,7 @@
 # dui architecture
 
+For the rendering protocol, read [How dui renders a canvas](rendering.md). It explains negative spacing, Unicode addresses, pen arithmetic, vertical bands, hit regions, runtime images and native item/shader transport with worked examples.
+
 Templates compile into a `MenuTemplate`. Rendering resolves read-only map bindings, expands repeats/conditions and produces a platform-independent `Canvas`: paints, click rectangles, heads, native-item placements, runtime rasters and bounded shader effects.
 
 `dui-paper` turns the canvas into one Adventure text body. Rectangle/icon glyphs and negative advances position content; invisible positive advances carry hit regions. Shifted text is clipped into 9-pixel bands so later rows cannot paint over earlier glyphs. Player portraits use native Adventure object components.

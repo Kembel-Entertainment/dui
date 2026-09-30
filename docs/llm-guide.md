@@ -13,6 +13,8 @@ This file is a compact implementation contract for **dui 0.1.0-SNAPSHOT**, a Wor
 
 Use [quickstart.md](quickstart.md) for a complete plugin, Gradle configuration, plugin.yml, config and template. [components.md](components.md) lists supported tags. [architecture.md](architecture.md) explains the rendering transport. Public adapter source is under `dui-paper/src/main/java/gg/kembel/dui/paper/`.
 
+For renderer or pack work, also supply [rendering.md](rendering.md). It documents the actual negative-spacing/font protocol, glyph advances, 9-pixel band splitting, hit-first ordering and native-item shader payload. Maintain `shift(x) + glyph advance A + shift(-(x+A)) = 0` for each placement; a bitmap's visible width is not its advance. Invisible positive spans own the clicks; decorations draw after them. These transport details are handled by dui when using templates.
+
 ## Public API
 
 ```java
