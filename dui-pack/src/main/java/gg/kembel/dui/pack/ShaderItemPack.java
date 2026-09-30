@@ -56,6 +56,9 @@ public final class ShaderItemPack {
     // Six side cells carry one-shot native transition parameters outside the crop.
     for (int i = 0; i < 6; i++)
       elements.add(face(-16, -10 + i * 3, -13, -7 + i * 3, "white", 32 + i));
+    // Right edge: 38 bits of fixed viewport, relative to the final item origin.
+    for (int i = 0; i < 13; i++)
+      elements.add(face(29, -10 + i * 3, 32, -7 + i * 3, "white", 38 + i));
     JsonObject marker =
         JsonParser.parseString(
                 "{\"gui_light\":\"front\",\"textures\":{\"white\":\"dui:item/white\",\"clear\":\"dui:item/clear\",\"particle\":\"dui:item/white\"}}")
@@ -133,7 +136,7 @@ public final class ShaderItemPack {
             JsonParser.parseString("{\"type\":\"minecraft:constant\",\"value\":" + color + "}"));
       for (int i = 0;
           i
-              < 34
+              < ItemTransport.NATIVE_CELLS
                   + (entry.getKey().equals("dui:effect/panel")
                       ? ShaderEffect.LIMIT * ShaderEffect.CELLS
                       : 0);

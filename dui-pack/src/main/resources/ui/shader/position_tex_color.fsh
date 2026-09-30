@@ -11,6 +11,8 @@ layout(std140) uniform DynamicTransforms {
 
 uniform sampler2D Sampler0;
 
+in vec2 clipPoint;
+flat in vec4 itemClip;
 in vec2 texCoord0;
 in vec4 vertexColor;
 in vec2 burstPoint;
@@ -28,6 +30,7 @@ float random(float n) { return fract(sin(n*127.1+311.7)*43758.5453); }
 // EFFECT_FUNCTIONS
 
 void main() {
+    if(effectKind==3 && (any(lessThan(clipPoint,itemClip.xy)) || any(greaterThanEqual(clipPoint,itemClip.zw))))discard;
     if(effectKind==1){vec4 panel=shaderEffects(burstPoint,burstAge,effectFlags);if(panel.a==0.0)discard;fragColor=panel*ColorModulator;return;}
     vec4 color = texture(Sampler0, texCoord0) * vertexColor;
     if(burstAge>=0.0) {

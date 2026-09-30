@@ -4,7 +4,7 @@ import java.util.*;
 
 /** Versioned native-item and shared-effect transport encoding. */
 public final class ItemTransport {
-  public static final int DATA_INDEX = 32, BURST_TICKS = 96;
+  public static final int DATA_INDEX = 32, BURST_TICKS = 96, NATIVE_CELLS = 47;
 
   private ItemTransport() {}
 
@@ -43,21 +43,37 @@ public final class ItemTransport {
     return colors(data, 18);
   }
 
-  /** Kind 2 header plus six side cells; native pixels keep their normal crop. */
+  /**
+   * Kind 2/3 native header, six motion cells and optional thirteen clip cells; crop is retained.
+   */
   public static List<Integer> transitionPayload(
       Canvas canvas, Canvas.Item item, ItemTransition transition) {
     var payload =
         new ArrayList<>(
             confettiPayload(
-                transition.startedAt(), canvas.width, canvas.height, item.x(), item.y()));
+                transition.startedAt(),
+                canvas.width,
+                canvas.height,
+                Math.clamp(item.x(), 0, canvas.width - 1),
+                Math.clamp(item.y(), 0, canvas.height - 1)));
     // Last header cell holds the three-bit transport kind (bits 51..53).
-    payload.set(17, 0x00FF00);
+    var clip = canvas.clips.get(item.id());
+    payload.set(17, clip == null ? 0x00FF00 : 0xFFFF00);
     long parameters =
         transition.durationTicks()
             | ((long) transition.kind().ordinal() << 7)
-            | ((long) transition.distance() << 9)
-            | (transition.motion() ? 1L << 16 : 0);
+            | ((long) Math.abs(transition.distance()) << 9)
+            | (transition.motion() ? 1L << 16 : 0)
+            | (transition.distance() < 0 ? 1L << 17 : 0);
     payload.addAll(colors(parameters, 6));
+    if (clip != null) {
+      long clipping =
+          (clip.x() - item.x() + 512L)
+              | ((clip.y() - item.y() + 512L) << 10)
+              | ((long) clip.width() << 20)
+              | ((long) clip.height() << 29);
+      payload.addAll(colors(clipping, 13));
+    }
     return payload;
   }
 

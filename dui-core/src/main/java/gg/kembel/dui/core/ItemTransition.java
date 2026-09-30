@@ -6,7 +6,8 @@ public record ItemTransition(
   public enum Kind {
     POP,
     BOUNCE,
-    LIFT
+    LIFT,
+    SLIDE
   }
 
   public ItemTransition {
@@ -14,9 +15,10 @@ public record ItemTransition(
         || startedAt < 0
         || durationTicks < 1
         || durationTicks > 127
-        || distance < 0
+        || distance < (kind == Kind.SLIDE ? -127 : 0)
         || distance > 127)
       throw new IllegalArgumentException(
-          "Item transition requires a nonnegative world tick, duration 1..127 and distance 0..127");
+          "Item transition requires a nonnegative world tick, duration 1..127; distance 0..127"
+              + " (slide: -127..127)");
   }
 }

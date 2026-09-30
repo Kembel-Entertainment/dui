@@ -142,7 +142,11 @@ public final class MenuTemplate {
           "transition",
           "transition-start",
           "transition-duration",
-          "transition-distance");
+          "transition-distance",
+          "clip-x",
+          "clip-y",
+          "clip-width",
+          "clip-height");
   private static final Pattern BIND = Pattern.compile("\\{\\{([a-zA-Z_][a-zA-Z_0-9.]*)}}");
   private final Element root;
   private final Map<String, Map<String, String>> styles = new HashMap<>();
@@ -384,7 +388,8 @@ public final class MenuTemplate {
       List<Runnable> overlays,
       boolean positioned,
       Map<String, RasterImage> images) {
-    if (w < 1 || h < 0 || x < 0 || y < 0 || x + w > c.width || y + h > c.height)
+    boolean clippedItem = n.type.equals("item") && !n.s("clip-width", "").isBlank();
+    if (w < 1 || h < 0 || !clippedItem && (x < 0 || y < 0 || x + w > c.width || y + h > c.height))
       throw new IllegalArgumentException("Component outside canvas: " + n.type);
     if (h == 0) return;
     if (n.type.equals("layer")) {
@@ -393,7 +398,8 @@ public final class MenuTemplate {
             cy = ch.n("y", 0),
             cw = ch.s("width", "fill").equals("fill") ? w - cx : ch.n("width", w),
             chh = ch.s("height", "fill").equals("fill") ? h - cy : ch.n("height", natural(ch));
-        if (cx < 0 || cy < 0 || cw < 1 || chh < 1 || cx + cw > w || cy + chh > h)
+        boolean childClip = ch.type.equals("item") && !ch.s("clip-width", "").isBlank();
+        if (cw < 1 || chh < 1 || !childClip && (cx < 0 || cy < 0 || cx + cw > w || cy + chh > h))
           throw new IllegalArgumentException("Layer overflow: " + ch.type);
         draw(c, ch, x + cx, y + cy, cw, chh, overlays, true, images);
       }
@@ -428,7 +434,22 @@ public final class MenuTemplate {
     if (n.type.equals("item")) {
       String id = n.s("id", "");
       int size = n.n("size", Math.min(w, h));
-      c.item(id, x, y, size);
+      ItemClip clip = null;
+      boolean clipped =
+          !n.s("clip-x", "").isBlank()
+              || !n.s("clip-y", "").isBlank()
+              || !n.s("clip-width", "").isBlank()
+              || !n.s("clip-height", "").isBlank();
+      if (clipped) {
+        for (String attr : java.util.List.of("clip-x", "clip-y", "clip-width", "clip-height"))
+          if (n.s(attr, "").isBlank())
+            throw new IllegalArgumentException(
+                "Item clip requires all four clip attributes: " + id);
+        clip =
+            new ItemClip(
+                n.n("clip-x", 0), n.n("clip-y", 0), n.n("clip-width", 0), n.n("clip-height", 0));
+      }
+      c.item(id, x, y, size, clip);
       String transition = n.s("transition", "");
       if (!transition.isBlank()) {
         try {
@@ -447,9 +468,9 @@ public final class MenuTemplate {
       }
       long burst = Long.parseLong(n.s("burst-start", "-1"));
       if (burst >= 0) {
-        if (!transition.isBlank())
+        if (!transition.isBlank() || clipped)
           throw new IllegalArgumentException(
-              "Use a separate particles component with item transitions");
+              "Use a separate particles component with item transitions or clips");
         if (c.confetti != null)
           throw new IllegalArgumentException("Only one confetti carrier is supported");
         c.confetti = new Canvas.Confetti(id, burst);

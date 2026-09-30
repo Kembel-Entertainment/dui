@@ -243,6 +243,31 @@ Supply map keys `openedAt`/`revealedAt` as world game-time ticks, booleans `moti
 
 Keep the selected gift and a generation counter in the consumer's session. Start once in the action handler, schedule reveal after 24 ticks, and check that the same session/generation/menu is active before updating. Preserve `openedAt` and set `revealedAt` only at reveal. Cancel on explicit close/back/replay. After the finite burst, render the scene with `motion=false` to retain the lifted lid and full-size reward without future clock-wrap replay. This is demonstration state, not a reward claim transaction. See [Advent demo](https://github.com/Kembel-Entertainment/dui-demo/blob/master/docs/advent.md) for a complete consumer.
 
+## A clipped horizontal carousel
+
+```xml
+<dui-menu width="320" height="108" motion="{{motion}}">
+  <dui-layer height="fill">
+    <dui-repeat items="cards" as="card">
+      <dui-item id="{{card.id}}" x="{{card.x}}" y="18" size="63"
+        width="63" height="63" clip-x="68" clip-y="18" clip-width="185" clip-height="63"
+        transition="{{card.transition}}" transition-start="{{startedAt}}"
+        transition-duration="24" transition-distance="{{distance}}" />
+    </dui-repeat>
+    <dui-button id="previous" action="previous" label="&lt;" locked="{{moving}}"
+      x="12" y="36" width="27" height="27" />
+    <dui-button id="next" action="next" label="&gt;" locked="{{moving}}"
+      x="281" y="36" width="27" height="27" />
+  </dui-layer>
+</dui-menu>
+```
+
+The resting strip uses three models at X=63,129,195. To slide left, advance the selected index, then send four target placements X=-3,63,129,195 with `transition="slide"`, `distance=66`, one nonnegative `startedAt` world tick, and `moving=true`. Their first frame appears at X=63,129,195,256; the outgoing and incoming cards are clipped by the fixed viewport. To slide right, decrement the selection and target X=63,129,195,256 with `distance=-66`. Wrap business indices with `Math.floorMod` and keep placement IDs unique.
+
+The extra card is only a visual carrier. Provide an ItemStack for every placement, including the one outside the viewport. Normal Minecraft models work; custom illustrated cards require their own registered model/texture additions. Rasters passed to `dui-image` do not gain this animation.
+
+After 24 ticks, verify the current session, section and generation, render the three resting placements with `transition=""`, and unlock the controls. Close, menu changes, mode changes and motion toggles cancel the pending task. With motion off, render the final three-card layout immediately. The server receives arrows/card clicks; Vanilla does not expose drag/swipe gestures. Use separate hits under the visible cards, disable them during transit, and keep each in the fixed canvas/9-pixel grid. No per-frame server loop is needed. See [the complete warp consumer](https://github.com/Kembel-Entertainment/dui-demo/blob/master/docs/warps.md).
+
 ## Application ownership and update rules
 
 dui renders state and transports clicks. The consumer owns permissions, inventory/economy updates, rewards, transactions, persistence and cancellation. A label, `locked` flag, tree status or a random callback token does not prove an action is still allowed. Re-read current state when committing a change; use your storage's own idempotency/transaction rules for rewards and payments. The single-use callback protects a view revision, not a business operation across multiple views or reconnects.

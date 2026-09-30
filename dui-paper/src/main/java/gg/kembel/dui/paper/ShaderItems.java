@@ -49,6 +49,9 @@ public final class ShaderItems {
           new NamespacedKey("dui", "live/" + original.getNamespace() + "/" + original.getKey()));
       boolean confetti = canvas.confetti != null && canvas.confetti.itemId().equals(item.id());
       var transition = canvas.transitions.get(item.id());
+      boolean clipped = canvas.clips.containsKey(item.id());
+      if (clipped && transition == null)
+        transition = new ItemTransition(ItemTransition.Kind.SLIDE, 0, 1, 0, false);
       if (transition != null && (confetti || animation))
         throw new IllegalArgumentException(
             "Item transition must have its own carrier: " + item.id());
@@ -56,7 +59,7 @@ public final class ShaderItems {
       var colors = new ArrayList<>(cmd.getColors());
       while (colors.size()
           < ItemTransport.DATA_INDEX
-              + 34
+              + ItemTransport.NATIVE_CELLS
               + (animation ? ShaderEffect.LIMIT * ShaderEffect.CELLS : 0)) colors.add(Color.BLACK);
       // FocusableTextWidget: 4px padding. Text width = canvas.width+2.
       // Each following item body occupies 1px plus the vanilla 10px gap.

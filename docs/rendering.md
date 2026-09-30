@@ -167,7 +167,13 @@ For an LLM task, supply this file together with the LLM guide and the relevant s
 
 ## Native transition transport
 
-The extended 18-cell header has start tick (15 bits), canvas width/height (9 each), item origin x/y (9 each) and transport kind (3 bits). Kind 0 is legacy native confetti, 1 is the shared effect panel and 2 transforms the native item quad while retaining its normal texture crop. Kind 2 adds six RGB cells on the left frame edge, outside the native crop. Their 18 bits encode duration (bits 0–6), preset ordinal `POP=0`, `BOUNCE=1`, `LIFT=2` (7–8), distance (9–15), motion flag (16), and a reserved bit (17). Native model wrappers now supply 34 custom colour cells; regenerate the pack together with the adapter when upgrading.
+The extended 18-cell header has start tick (15 bits), canvas width/height (9 each), origin x/y (9 each) and transport kind (3 bits). Kind 0 is legacy native confetti, 1 is the shared effect panel, 2 transforms a native quad and 3 adds a fixed viewport to that native quad. Native paths retain their normal texture crop. Off-canvas clipped native origins are clamped in the legacy header's informational origin fields; their actual placement still comes from the base offsets.
+
+Kinds 2/3 read six left-edge RGB cells, outside the native crop. Their 18 bits encode duration (0–6), preset ordinal `POP=0`, `BOUNCE=1`, `LIFT=2`, `SLIDE=3` (7–8), distance magnitude (9–15), motion flag (16), and negative-distance flag (17). SLIDE eases from `finalX + signedDistance` to `finalX` without scaling or rotating.
+
+Kind 3 reads thirteen right-edge cells (38 data bits): clip X minus final item X +512 (0–9), clip Y minus final item Y +512 (10–19), width (20–28), height (29–37). The vertex stage supplies interpolated GUI coordinates after transformation and the fixed viewport; the fragment stage discards native pixels outside it. This works for static clipped items as well: the adapter supplies a motion-disabled zero-distance SLIDE when no transition is requested. Hits are unaffected. Clipped items must use a separate carrier for confetti/shared effects.
+
+Native model wrappers supply **47 custom colour cells**, replacing the previous 34; regenerate the pack together with the adapter. The shared panel's component stream still starts at payload index 28; the new edge cells do not shift its existing encoding. CustomModelData indices 32 and higher remain reserved.
 
 Each transition reads client game time independently. It scales, rotates and translates the already-rendered original model; it does not replace the item with a PNG. The shared panel's component kinds are reel 1, lever 2, coins 3, lights 4 and confetti 5. Confetti shares the bounded count/origin/even-delay parameters with coins, using a 72-tick burst lifetime after delay.
 

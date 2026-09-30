@@ -27,6 +27,8 @@ in vec2 UV0;
 in vec4 Color;
 uniform sampler2D Sampler0;
 
+out vec2 clipPoint;
+flat out vec4 itemClip;
 out vec2 texCoord0;
 out vec4 vertexColor;
 out vec2 burstPoint;
@@ -41,6 +43,8 @@ flat out uvec3 effectData[8];
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
+    itemClip = vec4(0.0);
+    clipPoint = vec2(0.0);
     texCoord0 = UV0;
     vertexColor = Color;
     burstAge = -1.0;
@@ -97,7 +101,7 @@ void main() {
     effectKind=int((high>>21u)&7u);
     effectFlags=int(size);
     if(any(lessThan(burstBounds,vec2(1.0))) || any(greaterThan(burstBounds,vec2(480.0,360.0))))return;
-    if(effectKind==2){
+    if(effectKind==2 || effectKind==3){
         uint params=0u;
         for(int i=0;i<6;i++){
             vec3 rgb=step(threshold,texture(Sampler0,vec2(1.5/48.0,(7.5+float(i)*3.0)/48.0)).rgb);
@@ -109,9 +113,22 @@ void main() {
         float scale=1.0,angle=0.0;vec2 shift=vec2(0);
         if(preset==0){float v=u-1.0;scale=1.0+2.70158*v*v*v+1.70158*v*v;shift.y=distance*pow(1.0-u,3.0);angle=-.18*(1.0-u);}
         else if(preset==1){float pulse=sin(u*3.141593);scale=1.0+.10*pulse;angle=sin(u*18.84956)*.08*(1.0-u);shift.y=-distance*.18*pulse;}
-        else {float ease=1.0-pow(1.0-u,3.0);shift.y=-distance*ease;shift.x=distance*.16*ease;angle=-.24*ease;}
+        else if(preset==2){float ease=1.0-pow(1.0-u,3.0);shift.y=-distance*ease;shift.x=distance*.16*ease;angle=-.24*ease;}
+        else {shift.x=distance*pow(1.0-u,3.0)*((params&(1u<<17u))!=0u?-1.0:1.0);}
+        if(effectKind==3){
+            uint a=0u,b=0u;
+            for(int i=0;i<13;i++){
+                vec3 rgb=step(threshold,texture(Sampler0,vec2(46.5/48.0,(7.5+float(i)*3.0)/48.0)).rgb);
+                uint cell=uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u);
+                if(i<10)a|=cell<<uint(i*3);else b|=cell<<uint((i-10)*3);
+            }
+            vec2 minPoint=itemOrigin+offset+vec2(int(a&1023u)-512,int((a>>10u)&1023u)-512);
+            vec2 dimensions=vec2(float((a>>20u)&511u),float(((a>>29u)&1u)|(b<<1u)));
+            itemClip=vec4(minPoint,minPoint+dimensions);
+        }
         vec2 delta=(corner-.5)*size*scale;delta=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*delta;
-        gl_Position=ProjMat*ModelViewMat*vec4(itemOrigin+offset+vec2(size*.5)+delta+shift,Position.z,1.0);
+        clipPoint=itemOrigin+offset+vec2(size*.5)+delta+shift;
+        gl_Position=ProjMat*ModelViewMat*vec4(clipPoint,Position.z,1.0);
         return;
     }
     if(effectKind==1){

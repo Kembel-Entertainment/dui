@@ -37,6 +37,7 @@ public final class Canvas {
   public final List<Image> images = new ArrayList<>();
   public final List<Hit> hits = new ArrayList<>();
   public final Map<String, ItemTransition> transitions = new LinkedHashMap<>();
+  public final Map<String, ItemClip> clips = new LinkedHashMap<>();
   public boolean motionEnabled = true;
   public Confetti confetti;
   public Animation animation;
@@ -123,7 +124,24 @@ public final class Canvas {
   }
 
   public void item(String id, int x, int y, int size) {
-    bounds(x, y, size, size);
+    item(id, x, y, size, null);
+  }
+
+  /** Clipped carriers may sit outside the canvas, to enter or leave a carousel viewport. */
+  public void item(String id, int x, int y, int size, ItemClip clip) {
+    if (id == null
+        || id.isBlank()
+        || size < 1
+        || size > 127
+        || items.stream().anyMatch(i -> i.id().equals(id)))
+      throw new IllegalArgumentException("Native item needs a unique id and size 1..127");
+    if (clip == null) bounds(x, y, size, size);
+    else {
+      bounds(clip.x(), clip.y(), clip.width(), clip.height());
+      if (clip.x() - x < -512 || clip.x() - x > 511 || clip.y() - y < -512 || clip.y() - y > 511)
+        throw new IllegalArgumentException("Item clip offset must fit -512..511");
+      clips.put(id, clip);
+    }
     items.add(new Item(id, x, y, size));
   }
 

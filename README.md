@@ -88,6 +88,7 @@ Runtime images use RGB-tinted rectangle glyphs. They do not add thumbnails to th
 - Paper/Minecraft **26.2**, Java **25**; locally verified on macOS ARM64 with the vanilla renderer.
 - HTML-like XML component DSL, not a browser: no CSS engine, DOM or JavaScript.
 - Canvas widths 120–480 GUI pixels; heights up to 360 in 9-pixel rows. Click regions follow that row grid.
+- Generic native-model transitions (pop, bounce, lift, signed horizontal slide) and fixed clipping viewports; the carousel recipe needs no menu-specific shader. Vanilla callbacks expose clicks, not drag/swipe gestures.
 - At most eight shared shader-effect components and 16,384 sampled image pixels per canvas.
 - GUI scale and window dimensions are not available to a vanilla server. Applications offer Compact/Spacious choices.
 - Native form inputs retain Minecraft's native dialog layout. Resource packs that replace the same core shaders require integration work.
