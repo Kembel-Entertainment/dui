@@ -1,0 +1,18 @@
+plugins { id 'base' }
+allprojects {
+    group = 'gg.kembel.dui'
+    version = '0.1.0-SNAPSHOT'
+    repositories { mavenCentral(); maven { url = 'https://repo.papermc.io/repository/maven-public/' } }
+}
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+    java { sourceCompatibility = JavaVersion.VERSION_25; targetCompatibility = JavaVersion.VERSION_25; withSourcesJar(); withJavadocJar() }
+    tasks.withType(JavaCompile).configureEach { options.release = 25 }
+    dependencies { testImplementation platform('org.junit:junit-bom:5.14.0'); testImplementation 'org.junit.jupiter:junit-jupiter'; testRuntimeOnly 'org.junit.platform:junit-platform-launcher' }
+    test { useJUnitPlatform() }
+    tasks.withType(Javadoc).configureEach { options.addStringOption('Xdoclint:all,-missing', '-quiet') }
+    publishing { publications { mavenJava(MavenPublication) { from components.java } } }
+}
+tasks.named('check') { dependsOn subprojects.collect { it.tasks.named('check') } }
+tasks.named('build') { dependsOn subprojects.collect { it.tasks.named('build') } }
