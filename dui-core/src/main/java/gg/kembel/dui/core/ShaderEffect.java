@@ -9,7 +9,8 @@ public record ShaderEffect(
     REEL(1),
     LEVER(2),
     COINS(3),
-    LIGHTS(4);
+    LIGHTS(4),
+    CONFETTI(5);
     public final int code;
 
     Kind(int code) {
@@ -23,6 +24,7 @@ public record ShaderEffect(
       case LEVER -> parameter0;
       case COINS -> (parameter0 >> 9) == 0 ? 0 : ((parameter1 >> 9) & 63) * 2 + 94;
       case LIGHTS -> 0;
+      case CONFETTI -> ((parameter1 >> 9) & 63) * 2 + 72;
     };
   }
 

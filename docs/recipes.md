@@ -220,6 +220,29 @@ ui.open(player, form, ViewModel.data(Map.of()), options, context -> {
 
 Validate nulls, length, allowed choices and numeric bounds/finite values on the server even when the input widget constrains them. Re-check permission when an action commits a change. Custom canvas confirmation can use ordinary buttons; native confirmation uses `DialogOptions` with `confirmation=true` and exactly two buttons. An exit action closes before calling its handler; a normal Save/Confirm button does not close automatically.
 
+## An animated gift assembled from reusable components
+
+```xml
+<dui-menu width="300" height="144" animation-start="{{openedAt}}" motion="{{motion}}">
+  <dui-layer height="fill">
+    <dui-item id="gift_body" x="9" y="36" width="72" height="72" size="72"
+      transition="bounce" transition-start="{{openedAt}}" transition-duration="24" />
+    <dui-item id="gift_lid" x="9" y="36" width="72" height="72" size="72"
+      transition="lift" transition-start="{{openedAt}}" transition-duration="24" transition-distance="24" />
+    <dui-if test="{{revealed}}">
+      <dui-item id="reward" x="27" y="54" width="36" height="36" size="36"
+        transition="pop" transition-start="{{revealedAt}}" transition-duration="18" />
+    </dui-if>
+    <dui-particles id="party" effect="confetti" width="300" height="144"
+      origin-x="45" origin-y="72" count="40" delay="24" />
+  </dui-layer>
+</dui-menu>
+```
+
+Supply map keys `openedAt`/`revealedAt` as world game-time ticks, booleans `motion`/`revealed`, and native ItemStacks keyed `gift_body`, `gift_lid`, and `reward` when visible. The body/lid are custom decorative models registered as pack additions; the reward is a normal Minecraft ItemStack. These are independent visual layers, not extra dialog controls. Give the user a separate button/hit for opening.
+
+Keep the selected gift and a generation counter in the consumer's session. Start once in the action handler, schedule reveal after 24 ticks, and check that the same session/generation/menu is active before updating. Preserve `openedAt` and set `revealedAt` only at reveal. Cancel on explicit close/back/replay. After the finite burst, render the scene with `motion=false` to retain the lifted lid and full-size reward without future clock-wrap replay. This is demonstration state, not a reward claim transaction. See [Advent demo](https://github.com/Kembel-Entertainment/dui-demo/blob/master/docs/advent.md) for a complete consumer.
+
 ## Application ownership and update rules
 
 dui renders state and transports clicks. The consumer owns permissions, inventory/economy updates, rewards, transactions, persistence and cancellation. A label, `locked` flag, tree status or a random callback token does not prove an action is still allowed. Re-read current state when committing a change; use your storage's own idempotency/transaction rules for rewards and payments. The single-use callback protects a view revision, not a business operation across multiple views or reconnects.

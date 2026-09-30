@@ -67,6 +67,22 @@ vec4 effectPixel(vec2 q,vec2 size,int kind,int a,int b,float age,bool motion,boo
                 if(dist<1.0){vec3 paint=dist>.78?vec3(.66,.33,.07):dist>.63?vec3(1,.95,.55):vec3(1,.71,.16);if(abs(coin.x)<.12&&abs(coin.y)<.46)paint=vec3(1,.98,.66);c=vec4(paint,1.0-smoothstep(3.7,4.7,elapsed));}
             }
         }
+    }else if(kind==5){
+        float elapsed=age-float((b>>9)&63)/10.0;int count=(a>>9)&63;
+        if(eventLive&&motion&&elapsed>0.0&&elapsed<3.6){
+            vec2 origin=vec2(float(a&511),float(b&511));float scale=min(size.x/300.0,size.y/216.0);
+            const vec3 colors[5]=vec3[5](vec3(.35,1,.73),vec3(1,.29,.56),vec3(1,.87,.39),vec3(.66,.55,1),vec3(1,.97,.85));
+            for(int i=0;i<63;i++){
+                if(i>=count)break;float seed=float(i),ct=elapsed-random(seed+31.0)*.18;if(ct<0.0)continue;
+                vec2 vel=vec2((random(seed+23.0)-.5)*260.0,-110.0-random(seed+14.0)*90.0)*scale;
+                vec2 at=origin+vel*ct+vec2(0,75.0*scale*ct*ct),d=q-at;
+                if(any(greaterThan(abs(d),vec2(4.0*scale))))continue;
+                float angle=ct*(3.0+random(seed+44.0)*8.0)+seed;
+                d=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*d;
+                vec2 halfSize=vec2(2.5*max(.3,abs(cos(ct*9.0+seed))),1.4)*scale;
+                if(all(lessThan(abs(d),halfSize)))c=vec4(colors[i%5],1.0-smoothstep(2.8,3.6,elapsed));
+            }
+        }
     }else if(kind==4){
         float radius=float(b);for(int i=0;i<32;i++){
             if(i>=a)break;vec2 center=vec2(a==1?size.x*.5:radius+float(i)*(size.x-radius*2.0)/float(a-1),size.y*.5);

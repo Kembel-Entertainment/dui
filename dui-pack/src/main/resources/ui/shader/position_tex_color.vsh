@@ -97,6 +97,23 @@ void main() {
     effectKind=int((high>>21u)&7u);
     effectFlags=int(size);
     if(any(lessThan(burstBounds,vec2(1.0))) || any(greaterThan(burstBounds,vec2(480.0,360.0))))return;
+    if(effectKind==2){
+        uint params=0u;
+        for(int i=0;i<6;i++){
+            vec3 rgb=step(threshold,texture(Sampler0,vec2(1.5/48.0,(7.5+float(i)*3.0)/48.0)).rgb);
+            params|=(uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u))<<uint(i*3);
+        }
+        float elapsed=mod(GameTime*24000.0-started+24000.0,24000.0);
+        float u=(params&(1u<<16u))!=0u?clamp(elapsed/max(1.0,float(params&127u)),0.0,1.0):1.0;
+        int preset=int((params>>7u)&3u);float distance=float((params>>9u)&127u);
+        float scale=1.0,angle=0.0;vec2 shift=vec2(0);
+        if(preset==0){float v=u-1.0;scale=1.0+2.70158*v*v*v+1.70158*v*v;shift.y=distance*pow(1.0-u,3.0);angle=-.18*(1.0-u);}
+        else if(preset==1){float pulse=sin(u*3.141593);scale=1.0+.10*pulse;angle=sin(u*18.84956)*.08*(1.0-u);shift.y=-distance*.18*pulse;}
+        else {float ease=1.0-pow(1.0-u,3.0);shift.y=-distance*ease;shift.x=distance*.16*ease;angle=-.24*ease;}
+        vec2 delta=(corner-.5)*size*scale;delta=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*delta;
+        gl_Position=ProjMat*ModelViewMat*vec4(itemOrigin+offset+vec2(size*.5)+delta+shift,Position.z,1.0);
+        return;
+    }
     if(effectKind==1){
         effectCount=clamp(int(burstItem.x),0,8);
         for(int i=0;i<8;i++){

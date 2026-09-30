@@ -10,7 +10,7 @@ Unknown tags/attribute names are rejected. Attribute names currently have a **gl
 | --- | --- | --- |
 | `menu` | `width=440`, `height=306`, `padding=0`, `gap=0`, `theme=default` | Width 120–480, height 9–360 divisible by 9. Children flow horizontally; use one `column` for a vertical menu. |
 | Root preferences | `compact=false`, `compact-width`, `compact-height` | When compact is true, select the alternate canvas dimensions, defaulting to normal dimensions. This does not automatically reflow children. |
-| Root effects | `animation-start=-1`, `motion=true` | Pass a nonnegative world game-time tick to start effects. Motion false disables animation. |
+| Root effects | `animation-start=-1`, `motion=true` | Pass a nonnegative world game-time tick to start effects. Motion false shows final native transition poses and disables effect animation. |
 | Root focus | `focus-outline=hidden` | `hidden` or `native`. This affects the custom canvas, not native form controls. |
 | `row` | `gap=0`, `padding=0` | Fixed child widths consume space first; remaining width is shared by children without a width or with `width="fill"`. Children receive the row's height. |
 | `column` | `gap=0`, `padding=0` | Fixed/natural child heights consume space first. Children with `height="fill"` share the remainder in full 9-pixel rows. Children receive the column's width. |
@@ -74,6 +74,8 @@ An open dropdown requires nonempty `select` and `dismiss` actions. Its popup occ
 
 ItemStack components supply model/profile/banner/glint data. The `enchanted` template attribute does not configure the native stack. Slot count and durability are visual values; keep them consistent with your own ItemStack and business state. Native wrappers reserve CustomModelData colour entries from index 32 onwards. `__effects` is reserved for the shared effect carrier.
 
+Native item transitions use `transition="pop|bounce|lift"`, required `transition-start` (nonnegative world game-time tick), `transition-duration=24` (1–127 ticks) and `transition-distance=36` (0–127 GUI pixels). `pop` enters with overshoot and upward travel, `bounce` briefly jiggles then settles, and `lift` moves up and holds a rotated final pose. Each item has independent timing. Geometry/hits remain unchanged: reserve enough visual space for travel beyond the original rectangle. Root `motion=false` displays final poses immediately. Do not put `burst-start` and a transition on the same item; use a separate `particles` component. Imperative callers can use `canvas.transition(itemId, new ItemTransition(...))` after placing the item.
+
 A nonnegative `burst-start` starts finite item confetti using a world game-time tick; only one item confetti carrier is supported per canvas. Do not restart that tick on every unrelated update. For a large 3D player head, use a player-head ItemStack through `item`/`slot` rather than enlarging the portrait component.
 
 Runtime rasters are RGB, without per-cell alpha. The raw `RasterImage` constructor accepts dimensions 1–512. `RasterImage.decode` rejects source edges above 4096 or more than 4,000,000 pixels, composites transparency onto `#16171D` and scales the longest edge to at most 256. `image` fills its rectangle with an aspect-preserving centre crop. Keep labels outside its bounds because images draw above normal paints. Supply QR rasters at exactly the sampled dimensions, with integer modules and a quiet zone, to avoid resampling them.
@@ -94,7 +96,7 @@ Each effect requires a unique `id` and a bounded allocated rectangle. At most ei
 | --- | --- | --- |
 | `reel` | `symbols=arcade`, `value=0`, `previous=value`, `sequence=0`, `turns=18+sequence*6`, `duration=45+sequence*11`, `symbol-size=max(1,min(width*.39,height*.42))` truncated to integer | Only arcade symbols; values 0–5, sequence 0–7, turns 6–63, duration/size 1–127. Supply explicit size for large reels. `sequence` supplies timing/turn defaults, not a delay. |
 | `lever` | `duration=18` | 1–127 ticks |
-| `particles` | `effect=coins`, `count=24`, `origin-x=width/2`, `origin-y=height-1`, `delay=70` | Only coins; count 0–63, origin inside local bounds, delay 0–126 in **even ticks**. Lifetime is derived internally, not supplied through `duration`. |
+| `particles` | `effect=coins`, `count=24`, `origin-x=width/2`, `origin-y=height-1`, `delay=70` | `coins` or `confetti`; count 0–63, origin inside local bounds, delay 0–126 in **even ticks**. Lifetime is derived internally, not supplied through `duration`. |
 | `lights` | `count=12`, `radius=max(1,height/3)` | Count 1–32, radius 1–15. Supply explicit radius for tall light regions. |
 
 Use only the parameters listed for each effect. Reel `delay`, particle `duration`/`radius`, and light `duration` are not consumed. See [EffectComponent](../dui-core/src/main/java/gg/kembel/dui/core/EffectComponent.java) and [ShaderEffect](../dui-core/src/main/java/gg/kembel/dui/core/ShaderEffect.java) for exact encoding/lifetimes; templates can move and resize these effects without rebuilding the pack.

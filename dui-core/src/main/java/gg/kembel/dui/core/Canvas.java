@@ -36,6 +36,8 @@ public final class Canvas {
   public final List<Item> items = new ArrayList<>();
   public final List<Image> images = new ArrayList<>();
   public final List<Hit> hits = new ArrayList<>();
+  public final Map<String, ItemTransition> transitions = new LinkedHashMap<>();
+  public boolean motionEnabled = true;
   public Confetti confetti;
   public Animation animation;
   public boolean hideFocusOutline = true;
@@ -123,6 +125,14 @@ public final class Canvas {
   public void item(String id, int x, int y, int size) {
     bounds(x, y, size, size);
     items.add(new Item(id, x, y, size));
+  }
+
+  public void transition(String id, ItemTransition transition) {
+    if (items.stream().noneMatch(i -> i.id().equals(id)) || transitions.containsKey(id))
+      throw new IllegalArgumentException("Transition needs a unique existing item: " + id);
+    if (confetti != null && confetti.itemId().equals(id))
+      throw new IllegalArgumentException("Use a separate particles carrier with item transitions");
+    transitions.put(id, Objects.requireNonNull(transition));
   }
 
   public void image(String id, int x, int y, int w, int h, int pixelSize, RasterImage raster) {

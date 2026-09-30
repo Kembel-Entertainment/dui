@@ -43,6 +43,24 @@ public final class ItemTransport {
     return colors(data, 18);
   }
 
+  /** Kind 2 header plus six side cells; native pixels keep their normal crop. */
+  public static List<Integer> transitionPayload(
+      Canvas canvas, Canvas.Item item, ItemTransition transition) {
+    var payload =
+        new ArrayList<>(
+            confettiPayload(
+                transition.startedAt(), canvas.width, canvas.height, item.x(), item.y()));
+    // Last header cell holds the three-bit transport kind (bits 51..53).
+    payload.set(17, 0x00FF00);
+    long parameters =
+        transition.durationTicks()
+            | ((long) transition.kind().ordinal() << 7)
+            | ((long) transition.distance() << 9)
+            | (transition.motion() ? 1L << 16 : 0);
+    payload.addAll(colors(parameters, 6));
+    return payload;
+  }
+
   public static List<Integer> animationPayload(Canvas canvas) {
     var animation = Objects.requireNonNull(canvas.animation);
     if (canvas.effects.isEmpty() || canvas.effects.size() > ShaderEffect.LIMIT)

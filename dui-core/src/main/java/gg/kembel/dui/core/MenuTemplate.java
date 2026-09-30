@@ -138,7 +138,11 @@ public final class MenuTemplate {
           "source",
           "pixel-size",
           "size",
-          "burst-start");
+          "burst-start",
+          "transition",
+          "transition-start",
+          "transition-duration",
+          "transition-distance");
   private static final Pattern BIND = Pattern.compile("\\{\\{([a-zA-Z_][a-zA-Z_0-9.]*)}}");
   private final Element root;
   private final Map<String, Map<String, String>> styles = new HashMap<>();
@@ -293,6 +297,7 @@ public final class MenuTemplate {
             metrics);
     if (!Set.of("hidden", "native").contains(node.s("focus-outline", "hidden")))
       throw new IllegalArgumentException("focus-outline must be hidden or native");
+    canvas.motionEnabled = !node.s("motion", "true").equals("false");
     canvas.hideFocusOutline = !node.s("focus-outline", "hidden").equals("native");
     if (theme != UiTheme.DEFAULT) canvas.rect(0, 0, canvas.width, canvas.height, BG);
     var overlays = new ArrayList<Runnable>();
@@ -424,8 +429,27 @@ public final class MenuTemplate {
       String id = n.s("id", "");
       int size = n.n("size", Math.min(w, h));
       c.item(id, x, y, size);
+      String transition = n.s("transition", "");
+      if (!transition.isBlank()) {
+        try {
+          c.transition(
+              id,
+              new ItemTransition(
+                  ItemTransition.Kind.valueOf(transition.toUpperCase(java.util.Locale.ROOT)),
+                  Long.parseLong(n.s("transition-start", "-1")),
+                  n.n("transition-duration", 24),
+                  n.n("transition-distance", 36),
+                  c.motionEnabled));
+        } catch (IllegalArgumentException e) {
+          throw new IllegalArgumentException(
+              "Invalid item transition on " + id + ": " + e.getMessage(), e);
+        }
+      }
       long burst = Long.parseLong(n.s("burst-start", "-1"));
       if (burst >= 0) {
+        if (!transition.isBlank())
+          throw new IllegalArgumentException(
+              "Use a separate particles component with item transitions");
         if (c.confetti != null)
           throw new IllegalArgumentException("Only one confetti carrier is supported");
         c.confetti = new Canvas.Confetti(id, burst);

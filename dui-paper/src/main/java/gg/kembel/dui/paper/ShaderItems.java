@@ -48,11 +48,15 @@ public final class ShaderItems {
       meta.setItemModel(
           new NamespacedKey("dui", "live/" + original.getNamespace() + "/" + original.getKey()));
       boolean confetti = canvas.confetti != null && canvas.confetti.itemId().equals(item.id());
+      var transition = canvas.transitions.get(item.id());
+      if (transition != null && (confetti || animation))
+        throw new IllegalArgumentException(
+            "Item transition must have its own carrier: " + item.id());
       var cmd = meta.getCustomModelDataComponent();
       var colors = new ArrayList<>(cmd.getColors());
       while (colors.size()
           < ItemTransport.DATA_INDEX
-              + 28
+              + 34
               + (animation ? ShaderEffect.LIMIT * ShaderEffect.CELLS : 0)) colors.add(Color.BLACK);
       // FocusableTextWidget: 4px padding. Text width = canvas.width+2.
       // Each following item body occupies 1px plus the vanilla 10px gap.
@@ -68,11 +72,13 @@ public final class ShaderItems {
                   item.x() - canvas.width / 2,
                   item.y() - canvas.height - 14 - (i + 1) * 11,
                   flags,
-                  confetti || animation));
+                  confetti || animation || transition != null));
       if (confetti)
         payload.addAll(
             ItemTransport.confettiPayload(
                 canvas.confetti.startedAt(), canvas.width, canvas.height, item.x(), item.y()));
+      if (transition != null)
+        payload.addAll(ItemTransport.transitionPayload(canvas, item, transition));
       if (animation) payload.addAll(ItemTransport.animationPayload(canvas));
       for (int k = 0; k < payload.size(); k++)
         colors.set(ItemTransport.DATA_INDEX + k, Color.fromRGB(payload.get(k)));

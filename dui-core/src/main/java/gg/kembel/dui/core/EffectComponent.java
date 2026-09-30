@@ -39,7 +39,7 @@ final class EffectComponent {
         b = 0;
       }
       case "particles" -> {
-        if (!n.s("effect", "coins").equals("coins"))
+        if (!java.util.Set.of("coins", "confetti").contains(n.s("effect", "coins")))
           throw new IllegalArgumentException("Unknown particle effect");
         int count = number(n, "count", 24, 0, 63),
             ox = number(n, "origin-x", w / 2, 0, w - 1),
@@ -47,7 +47,10 @@ final class EffectComponent {
             delay = number(n, "delay", 70, 0, 126);
         if (delay % 2 != 0)
           throw new IllegalArgumentException("Particle delay uses even world ticks");
-        kind = ShaderEffect.Kind.COINS;
+        kind =
+            n.s("effect", "coins").equals("confetti")
+                ? ShaderEffect.Kind.CONFETTI
+                : ShaderEffect.Kind.COINS;
         a = ox | (count << 9);
         b = oy | ((delay / 2) << 9);
       }

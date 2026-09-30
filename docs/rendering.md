@@ -138,7 +138,7 @@ Placement data is encoded in CustomModelData colour entries beginning at index 3
 | 0–10 | `dx + 1024` |
 | 11–21 | `dy + 1024` |
 | 22–28 | Native item size, or effect-carrier flags |
-| 29 | Additional confetti/effect data is present |
+| 29 | Additional confetti/effect/transition data is present |
 
 The consumer-facing item rectangle stays in canvas coordinates. For item index `i` starting at zero, the adapter currently encodes `dx = item.x - canvas.width/2` and `dy = item.y - canvas.height - 14 - (i+1)*11`. These offsets compensate the native bodies' position, padding and gaps. Reserve CustomModelData colour entries 32 and above for this transport; earlier entries are retained. A transparent layer-fence body is inserted before the item bodies because vanilla orders GUI draws using their original bounds, before the shader relocates them.
 
@@ -164,3 +164,11 @@ Fonts supply horizontal advances, vertical slices and raster primitives. Item wr
 If rendering drifts horizontally, trace the pen and check every glyph's measured advance and compensating rewind. If text loses pixels between lines, inspect its offset/band selection. If clicks differ from the visible control, inspect hit order, 9-pixel alignment and positive spans. Missing glyphs usually require checking the selected font and matching pack; misplaced items require checking native-body offsets and transport recognition. Validate renderer/pack changes with dui-demo's real-client coordinate and screenshot scenarios, including Compact/Spacious layouts and runtime images. A unit test cannot verify vanilla's actual line wrapping, draw ordering or shader execution.
 
 For an LLM task, supply this file together with the LLM guide and the relevant source files from the table. Ask it to preserve the pen-reset invariant, hit-first ordering, band clipping and pack/runtime agreement rather than inventing CSS positioning or a browser renderer.
+
+## Native transition transport
+
+The extended 18-cell header has start tick (15 bits), canvas width/height (9 each), item origin x/y (9 each) and transport kind (3 bits). Kind 0 is legacy native confetti, 1 is the shared effect panel and 2 transforms the native item quad while retaining its normal texture crop. Kind 2 adds six RGB cells on the left frame edge, outside the native crop. Their 18 bits encode duration (bits 0–6), preset ordinal `POP=0`, `BOUNCE=1`, `LIFT=2` (7–8), distance (9–15), motion flag (16), and a reserved bit (17). Native model wrappers now supply 34 custom colour cells; regenerate the pack together with the adapter when upgrading.
+
+Each transition reads client game time independently. It scales, rotates and translates the already-rendered original model; it does not replace the item with a PNG. The shared panel's component kinds are reel 1, lever 2, coins 3, lights 4 and confetti 5. Confetti shares the bounded count/origin/even-delay parameters with coins, using a 72-tick burst lifetime after delay.
+
+The transported clock wraps every 24,000 world ticks. A consumer must finish transient events before that wrap: remove the effect or render its final pose with motion false after the event, guard any scheduled completion with the active session and a generation token, and cancel on explicit close. Preserve start ticks through unrelated updates. The Advent demo demonstrates this with one reveal update and one finite-effect cleanup, never a per-frame packet loop.
