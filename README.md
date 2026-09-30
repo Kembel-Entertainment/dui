@@ -4,6 +4,8 @@
 
 Built by [Kembel Entertainment](https://kembel.gg). Java packages and Maven group: `gg.kembel.dui`.
 
+Start with [your first plugin](docs/quickstart.md), a complete buildable example. For coding agents, supply [the LLM guide](docs/llm-guide.md); [llms.txt](llms.txt) indexes the documentation.
+
 | Module | Purpose |
 | --- | --- |
 | `dui-core` | Strict templates, data binding, layout, hit regions, themes, runtime images and effect parameters |
@@ -49,6 +51,7 @@ DialogSession session = ui.open(player, menu,
     context -> {
         if (context.action().equals("hello")) {
             player.sendMessage("Hello!");
+            context.session().close();
         }
     });
 ```
@@ -62,7 +65,7 @@ DialogSession session = ui.open(player, menu,
 </dui-menu>
 ```
 
-The session waits for the matching resource pack to load. It can update its template/view/options/handler, report a close with `onClose`, and close explicitly. Call `ui.close()` from your plugin's `onDisable`. All Paper-facing mutations must run on the main server thread.
+The session waits for the matching resource pack to load. It can update its template/view/options/handler, report a server-known close with `onClose`, and close explicitly. The example closes after **Say hello**. Accepted custom actions consume the displayed revision's callbacks; update the session if it should remain interactive. Call `ui.close()` from your plugin's `onDisable`. All Paper-facing mutations must run on the main server thread. See the LLM guide for Escape handling and asynchronous update limits.
 
 Use `DialogOptions` for titles, native form inputs, confirmation buttons and exit actions. `ViewModel` supplies data, image keys, real ItemStacks and explicit HTTP(S) links keyed by hit ID. Applications validate form values and authorize their own business actions.
 
@@ -90,4 +93,4 @@ Runtime images use RGB-tinted rectangle glyphs. They do not add thumbnails to th
 - Native form inputs retain Minecraft's native dialog layout. Resource packs that replace the same core shaders require integration work.
 - Pack/API versions are matched explicitly; multi-version support and shared-pack coordination across independently versioned plugins are future work.
 
-See [components](docs/components.md), [architecture](docs/architecture.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Own code is licensed under [MIT](LICENSE).
+See [quickstart](docs/quickstart.md), [LLM guide](docs/llm-guide.md), [components](docs/components.md), [architecture](docs/architecture.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Own code is licensed under [MIT](LICENSE).

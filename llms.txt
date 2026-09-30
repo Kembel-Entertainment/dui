@@ -1,0 +1,14 @@
+# dui
+
+> Work in Progress template-driven UI library for Paper 26.2, Java 25 and unmodified Minecraft clients. Namespace: gg.kembel.dui. Built by Kembel Entertainment (https://kembel.gg).
+
+## Documentation
+
+- [Coding-agent guide](docs/llm-guide.md): Compact API contract, template semantics, lifecycle rules, media, pack deployment, limits and a reusable prompt. Start here when supplying dui context to an LLM.
+- [First plugin](docs/quickstart.md): Complete Gradle, plugin.yml, config, XML and Java example with deployment steps.
+- [README](README.md): Module overview, local Maven build, embedding and pack generation.
+- [Components](docs/components.md): Supported layout, control, media and effect tags.
+- [Architecture](docs/architecture.md): Canvas rendering, font positioning, native model carriers and callback transport.
+- [dui-demo](https://github.com/Kembel-Entertainment/dui-demo): Companion consumer with examples and real-client integration tests.
+
+Own code is MIT licensed. API and pack formats are provisional. No remote Maven release has been published. Check the source for the exact checked-out version; do not invent CSS, browser JavaScript or undocumented methods.
