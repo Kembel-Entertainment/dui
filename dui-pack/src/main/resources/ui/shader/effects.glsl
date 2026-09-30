@@ -61,10 +61,16 @@ vec4 playingCard(vec2 q,vec2 size,int a,int b,float t,bool live){
     int id=a&63,mode=(a>>13)&3,palette=(b>>13)&3;bool down=((a>>6)&1)!=0,highlighted=((a>>7)&1)!=0;
     float delay=float((a>>8)&31)/10.0,duration=max(.05,float(b&127)/20.0),lift=float((b>>7)&63);
     float u=live?clamp((t-delay)/duration,0.0,1.0):1.0;
-    if(mode==1&&live&&t<delay)return vec4(0);
+    if((mode==1||mode==3)&&live&&t<delay)return vec4(0);
     float h=size.y-lift-6.0,w=min(size.x-4.0,h*.66),compression=1.0,angle=0.0;
     vec2 center=vec2(size.x*.5,lift+h*.5+1.0);
     bool back=down;
+    if(mode==3){
+        h=lift;w=min(size.x-4.0,h*.66);
+        vec2 source=vec2(size.x-w*.5-3.0,h*.5+3.0),dest=vec2(w*.5+2.0,size.y-h*.5-5.0);
+        float e=1.0-pow(1.0-u,3.0);center=mix(source,dest,e);
+        center.y-=sin(u*3.141593)*min(10.0,max(0.0,(size.y-h)*.15));angle=(1.0-u)*.12;
+    }
     if(mode==1){center.y-=lift*pow(1.0-u,3.0);angle=(1.0-u)*-.14;}
     if(mode==2){compression=max(.045,abs(cos(u*3.141593)));if(u<.5)back=!down;center.y-=sin(u*3.141593)*3.0;}
     vec2 p=q-center;p=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*p;

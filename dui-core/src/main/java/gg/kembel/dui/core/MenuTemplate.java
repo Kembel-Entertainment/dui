@@ -155,6 +155,7 @@ public final class MenuTemplate {
           "face-down",
           "animation",
           "lift",
+          "card-height",
           "palette",
           "from",
           "to",

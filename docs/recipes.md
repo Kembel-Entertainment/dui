@@ -301,3 +301,15 @@ An update sends a complete replacement dialog, not a browser DOM patch. Avoid se
 | A thumbnail reopens an escaped view | Server-known session state does not detect Escape; use explicit refresh if this is unacceptable. |
 
 For larger complete consumers, browse [dui-demo's templates](https://github.com/Kembel-Entertainment/dui-demo/tree/master/src/main/resources/ui) and [DuiDemoPlugin](https://github.com/Kembel-Entertainment/dui-demo/blob/master/src/main/java/gg/kembel/dui/demo/DuiDemoPlugin.java). Its demo balances and checkout are examples, not a production economy/payment service.
+
+
+## Sequential card flight
+
+```html
+<dui-menu width="480" height="324" animation-start="{{tick}}" motion="{{motion}}">
+  <dui-playing-card id="first_card" x="194" y="44" width="258" height="190"
+      value="{{visibleCard}}" animation="fly" card-height="54" delay="0" duration="28" />
+</dui-menu>
+```
+
+The flight rectangle contains the complete trajectory. `fly` starts at top-right, ends at bottom-left, eases and rotates slightly. Its fixed face height is 18–63 pixels; width is min(rectangle width − 4, face height × 0.66). Final top-left is approximately x+2, y+height−card-height−5. The accompanying static card can use the same destination slot (40×60, lift=0 for a 54-pixel face). Stagger multiple cards with even tick delays; keep at most eight total effects. Set hidden values to -1, even with face-down=true. At completion update once to the next gameplay phase, guarded by the active session/event generation. Reduced motion displays the final pose.

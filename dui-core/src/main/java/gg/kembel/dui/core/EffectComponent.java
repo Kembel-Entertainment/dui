@@ -43,10 +43,11 @@ final class EffectComponent {
       case "playing-card" -> {
         int card = number(n, "value", -1, -1, 51), delay = number(n, "delay", 0, 0, 62);
         if (delay % 2 != 0) throw new IllegalArgumentException("Card delay uses even ticks");
-        int mode = choice(n, "animation", "static", "static", "deal", "flip");
+        int mode = choice(n, "animation", "static", "static", "deal", "flip", "fly");
         int palette = choice(n, "palette", "mint", "classic", "mint", "coral", "violet");
         int duration = number(n, "duration", 18, 1, 127), lift = number(n, "lift", 12, 0, 63);
-        if (w < 12 || h < lift + 18)
+        if (mode == 3) lift = number(n, "card-height", 48, 18, 63);
+        if (w < 12 || h < (mode == 3 ? lift + 6 : lift + 18))
           throw new IllegalArgumentException("Card needs width >=12 and height >= lift+18");
         kind = ShaderEffect.Kind.PLAYING_CARD;
         a =
