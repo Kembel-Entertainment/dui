@@ -184,3 +184,15 @@ The transported clock wraps every 24,000 world ticks. A consumer must finish tra
 `Canvas.Image.background()` defaults to false, including the previous seven-argument constructor. `canvas.image(..., raster, true)` or `image-layer="background"` emits RGB glyphs before normal paints; foreground rasters emit afterwards. Both retain the same centre crop and 16,384-sample budget. This lets a consumer overlay labels and controls on its own illustration without a per-menu resource-pack asset.
 
 The shared effect transport also contains `PLAYING_CARD=6` and `CHIP_STACK=7`. The unchanged component layout is kind3/x9/y9/width9/height9/parameter0_15/parameter1_15 (69 bits, 23 RGB cells). Card parameter0: value bits0–5 (63 means unknown), faceDown bit6, active bit7, even-delay/2 bits8–12, animation bits13–14 (static0/deal1/flip2). Parameter1: duration bits0–6, lift bits7–12, back palette bits13–14. Chip parameter0: count bits0–4, palette bits5–6, source anchor bits7–9, destination bits10–12. Parameter1: duration bits0–6, mode bits7–8 (static0/transfer1), even-delay/2 bits9–14. Anchor codes are top-left0/top-right1/bottom-left2/bottom-right3/top4/bottom5/left6/right7. Cards/chips are procedural GLSL; there is no atlas of 52 pre-rendered faces. Source lives in `dui-pack/src/main/resources/ui/shader/effects.glsl`.
+
+## Single-zero wheel preset and invisible hits
+
+`ShaderEffect.Kind.WHEEL` uses previously unused **type code 0**. Existing type codes 1–7 and the 69-bit/23-cell per-effect transport stay unchanged. Rebuild the matching shared shader pack: an older pack cannot render the new kind. Do not rely on enum ordinals; the wire value is `kind.code`.
+
+- Parameter 0: target number bits 0–5, previous number bits 6–11, rotor turns bits 12–14. Numbers must be 0–36; turns 1–7.
+- Parameter 1: duration ticks bits 0–8 (20–511), spin bit 9 (static 0/spin 1), material bit 10 (walnut 0/ebony 1). Remaining bits are reserved.
+- Animated lifetime is the duration when spin is set; a static wheel has lifetime zero. The root world-tick start drives continuous shader time; there is no per-frame server update.
+
+The preset uses the clockwise single-zero sequence `0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26`. Continuous rotor easing and a counter-rotating ball settle into the supplied target beneath the fixed marker. The final stage follows the rotor with a damped bounce. Radial wedges, inset pockets, ivory ball, walnut/ebony surfaces, brass rings and numerals are procedural GLSL; there is no sprite sheet or roulette background texture in the pack. The animation presents a server-selected result; it does not simulate randomness or real-world ball physics.
+
+`dui-hitbox` adds only a `Canvas.Hit`. It emits no paint, runtime raster or native item. It is useful for composing a small illustrated grid without inheriting button padding or appearance. Hit bounds still use full 9-pixel rows because vanilla text callbacks operate at that granularity. Add the hit after the corresponding decoration and give it an explicit unique ID; do not promise arbitrary vertical mouse coordinates or dragging.

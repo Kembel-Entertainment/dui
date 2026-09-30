@@ -51,6 +51,7 @@ Set explicit, unique `id`s for hit regions. `action` is a route consumed by your
 
 | Tag | Natural height | State / actions |
 | --- | ---: | --- |
+| `hitbox` | Explicit height | Required unique `id`, nonempty `action`; `payload`, `tooltip`, `locked=false`. Invisible hit rectangle, no paint or model carrier. Use a positioned layer; y and height must be multiples of 9. |
 | `button`, `tab` | 18 | `label` or an icon when label is empty, `active=false`, `locked=false`, `action`, `value`/`payload`, `tooltip`. Label align is center by default or `left`. |
 | Styled `button` | 18 | Supplying `fill` enables `border`, `color`, disabled colour variants, `highlight`, `bevel=1`; this branch renders its label rather than its icon. |
 | `nav` | 27 | `label`, optional `icon`, `active=false`, `locked=false`, ordinary action/payload. |
@@ -96,6 +97,7 @@ Each effect requires a unique `id` and a bounded allocated rectangle. At most ei
 
 | Tag | Consumed parameters / defaults | Bounds |
 | --- | --- | --- |
+| `wheel` | `variant=european`, `value=0`, `previous=value`, `animation=static`, `duration=140`, `turns=4`, `palette=walnut` | Number 0–36; `static` or `spin`; duration 20–511 ticks; turns 1–7; palettes `walnut`, `ebony`. Square bounds at least 96×96. The single-zero rendering preset supplies correct pockets, radial numbers, counter-rotating ball, drop and capture. |
 | `reel` | `symbols=arcade`, `value=0`, `previous=value`, `sequence=0`, `turns=18+sequence*6`, `duration=45+sequence*11`, `symbol-size=max(1,min(width*.39,height*.42))` truncated to integer | Only arcade symbols; values 0–5, sequence 0–7, turns 6–63, duration/size 1–127. Supply explicit size for large reels. `sequence` supplies timing/turn defaults, not a delay. |
 | `lever` | `duration=18` | 1–127 ticks |
 | `particles` | `effect=coins`, `count=24`, `origin-x=width/2`, `origin-y=height-1`, `delay=70` | `coins` or `confetti`; count 0–63, origin inside local bounds, delay 0–126 in **even ticks**. Lifetime is derived internally, not supplied through `duration`. |
@@ -131,3 +133,25 @@ These are visual primitives, independent of poker state. `playing-card` draws an
 ```
 
 All effects share one root clock and one native carrier. Keep already-settled components `animation="static"` when a different event starts; otherwise changing the root tick replays their animations. Rendering does not advance game state or grant payouts. Replace finite modes with `static`/`animation-start=-1` using one guarded completion task. Root `motion=false` immediately shows final poses. Reserve bounds for the full card/flight; clipping happens at those bounds. A seven-card board plus a chip transfer uses all eight effect slots. If you need more simultaneous animated effects, extend the transport budget deliberately rather than adding ad hoc dialog shaders.
+
+## Wheels and illustrated hit regions
+
+```xml
+<dui-menu width="480" height="324" animation-start="{{startedAt}}" motion="{{motion}}">
+  <dui-layer height="fill">
+    <dui-wheel id="wheel" x="9" y="36" width="216" height="216"
+        variant="european" value="{{result}}" previous="{{previous}}"
+        animation="{{mode}}" duration="160" turns="4" palette="walnut" />
+    <dui-surface x="234" y="72" width="16" height="27"
+        fill="#357660" border="#A7AC83" bevel="1" />
+    <dui-text x="234" y="81" width="16" height="9" label="0" align="center" />
+    <dui-hitbox id="zero" action="place" payload="n:0"
+        x="234" y="72" width="16" height="27" locked="{{busy}}"
+        tooltip="Straight zero" />
+  </dui-layer>
+</dui-menu>
+```
+
+`wheel` is a visual preset, not a roulette game engine. The consumer chooses the outcome, owns the ledger, locks bets and settles exactly once. Keep the original start tick when replacing a view during a spin. The settled ball/pocket sit beneath the fixed twelve-o'clock marker. `turns` controls rotor travel; ball counter-rotation/deceleration are derived from that preset. `animation=static`, root `motion=false`, or an inactive event show the final pose. Explicitly changing Motion in a game still requires app-owned settlement/cancellation logic. Rebuild and deploy a matching pack when first adopting this component; moving it or changing its documented values needs no pack rebuild.
+
+An invisible `hitbox` lets custom artwork, small labels and input geometry compose independently. It does not enlarge native items, track drag gestures, move with animated pixels, or bypass the 9-pixel click-row constraint. Overlapping hits follow normal canvas order (last wins). `locked` leaves the tooltip but clears the callback. Always re-check application state in your handler. All eight effect type codes are now assigned; future new kinds require an explicit transport change rather than truncating an additional code to three bits.

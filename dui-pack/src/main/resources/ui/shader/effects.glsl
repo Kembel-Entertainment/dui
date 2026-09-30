@@ -125,9 +125,97 @@ vec4 chipStack(vec2 q,vec2 size,int a,int b,float t,bool live){
     return c;
 }
 
+// Single-zero wheel is a rendering preset; randomness, bets and payouts live in the consumer.
+const float wheelTau=6.28318530718;
+const int wheelNumbers[37]=int[37](0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26);
+int wheelIndex(int value){for(int i=0;i<37;i++)if(wheelNumbers[i]==value)return i;return 0;}
+bool wheelRed(int n){return n==1||n==3||n==5||n==7||n==9||n==12||n==14||n==16||n==18||n==19||n==21||n==23||n==25||n==27||n==30||n==32||n==34||n==36;}
+bool wheelDigit(vec2 p,int digit){
+    const int digits[10]=int[10](31599,29842,29671,31207,18925,31183,31695,18727,31727,31215);
+    ivec2 cell=ivec2(floor(p));return cell.x>=0&&cell.x<3&&cell.y>=0&&cell.y<5&&((digits[clamp(digit,0,9)]>>(cell.y*3+cell.x))&1)!=0;
+}
+vec3 wheelBrass(float r,float theta){
+    float spec=pow(max(0.0,cos(theta+.9)),8.0),groove=.04*sin(r*650.0);
+    return mix(vec3(.40,.28,.12),vec3(.88,.75,.46),.50+.28*cos(theta+.9))+spec*vec3(.18,.16,.11)+groove;
+}
+vec4 rouletteWheel(vec2 q,vec2 size,int a,int b,float t,bool live){
+    float radius=size.x*.47,stepAngle=wheelTau/37.0;
+    vec2 p=(q-size*.5)/radius;float r=length(p),theta=atan(p.x,-p.y);
+    int value=a&63,previous=(a>>6)&63,turns=(a>>12)&7,mode=(b>>9)&1,palette=(b>>10)&1;
+    float duration=float(b&511)/20.0,u=live&&mode==1?clamp(t/duration,0.0,1.0):1.0;
+    float start=-float(wheelIndex(previous))*stepAngle;
+    float travel=float(turns)*wheelTau+mod(float(wheelIndex(previous)-wheelIndex(value))*stepAngle,wheelTau);
+    float wheel=start+travel*(1.0-pow(1.0-u,3.0));
+    float angle=mod(theta-wheel+stepAngle*.5,wheelTau),sector=floor(angle/stepAngle);
+    int number=wheelNumbers[int(sector)];float localAngle=mod(angle,stepAngle)-stepAngle*.5;
+    vec4 c=vec4(0);
+    float shadow=length((p-vec2(.018,.028))/vec2(1.0,.995));
+    if(shadow<1.055)c=vec4(.025,.035,.03,.7*(1.0-smoothstep(1.0,1.055,shadow)));
+    if(r<1.0){
+        float grain=sin(theta*25.0+r*120.0)*.008;
+        c=vec4(palette==1?vec3(.12,.135,.135):vec3(.32,.18,.105),1);
+        c.rgb*=.83+.16*cos(theta+.8);c.rgb+=grain;
+        if(r>.986)c.rgb=vec3(.13,.10,.07);
+        if(r>.958&&r<.983)c.rgb=wheelBrass(r,theta);
+        if(r>.838&&r<.938)c.rgb=mix(vec3(.065,.085,.08),vec3(.22,.255,.225),smoothstep(.838,.938,r));
+        if(r>.91&&r<.917)c.rgb=vec3(.52,.54,.44);
+        if(r>.807&&r<.832)c.rgb=wheelBrass(r,theta);
+        // Number band and the physically separate, inset pocket ring.
+        if(r>.55&&r<.806){
+            vec3 paint=number==0?vec3(.10,.38,.27):wheelRed(number)?vec3(.66,.11,.12):vec3(.055,.075,.072);
+            c.rgb=paint*(r<.65?.72:1.0);
+            if(r<.56)c.rgb=wheelBrass(r,theta);
+            if(r>.646&&r<.657)c.rgb=wheelBrass(r,theta);
+            if(abs(localAngle)>stepAngle*.47)c.rgb=wheelBrass(r,theta);
+            if(r>.67&&r<.79){
+                float unit=radius*stepAngle*.11;
+                vec2 label=vec2(sin(localAngle)*r, .734-cos(localAngle)*r)*radius/unit+vec2(number<10?1.5:3.5,2.5);
+                bool digit=number<10?wheelDigit(label,number):wheelDigit(label,number/10)||wheelDigit(label-vec2(4,0),number%10);
+                if(digit)c.rgb=vec3(.99,.96,.86);
+            }
+        }
+        if(r<.545){
+            float rotorTheta=theta-wheel;
+            c.rgb=palette==1?vec3(.09,.11,.105):vec3(.32,.195,.115);
+            c.rgb*=.76+.19*cos(rotorTheta*2.0)+.05*cos(rotorTheta*20.0+r*80.0);
+            if(r>.512)c.rgb=wheelBrass(r,theta);
+            // A conical brass turret with four slender spindle arms.
+            if(r>.125&&r<.29&&abs(sin(rotorTheta*2.0))<.07/r)c.rgb=wheelBrass(r,theta);
+            if(r<.152)c.rgb=wheelBrass(r,theta)*(.78+.4*(1.0-r/.152));
+            if(r<.064)c.rgb=mix(vec3(.47,.35,.18),vec3(.98,.87,.61),clamp(.6-p.x*7.0-p.y*6.0,0.0,1.0));
+            if(r>.043&&r<.05)c.rgb=vec3(.32,.23,.10);
+        }
+        // Eight fixed low-profile brass deflectors on the sloped ball track.
+        float deflector=abs(mod(theta+wheelTau/16.0,wheelTau/8.0)-wheelTau/16.0);
+        if(abs(r-.852)<.014&&deflector<.018)c.rgb=wheelBrass(r,theta);
+    }
+    // Counter-rotation, centrifugal track, progressive drop, damped pocket bounce and capture.
+    float capture=.74,ballAngle=0.0,ballR=.60;
+    if(u<1.0){
+        float cycle=float(turns*2+2)*wheelTau;
+        float orbit=-cycle*(1.0-pow(1.0-u,2.0));
+        float orbitAt=-cycle*(1.0-pow(1.0-capture,2.0));
+        float wheelAt=start+travel*(1.0-pow(1.0-capture,3.0));
+        float offset=mod(orbitAt-wheelAt-float(wheelIndex(value))*stepAngle+3.141593,wheelTau)-3.141593;
+        if(u<capture)ballAngle=orbit;
+        else {float v=(u-capture)/(1.0-capture);ballAngle=wheel+float(wheelIndex(value))*stepAngle+offset*pow(1.0-v,3.0)+sin(v*20.0)*.018*pow(1.0-v,2.0);}
+        float drop=smoothstep(.55,.82,u);ballR=mix(.89,.60,drop)+sin(u*115.0)*.015*sin(drop*3.141593);
+    }
+    vec2 ball=vec2(sin(ballAngle),-cos(ballAngle))*ballR;
+    float ballSize=max(.018,1.7/radius),ds=length((p-ball-vec2(.008,.012))/vec2(ballSize*1.1,ballSize*.7));
+    if(ds<1.25)c=mix(c,vec4(.03,.04,.035,1),.48*(1.0-smoothstep(.5,1.25,ds)));
+    vec2 bp=(p-ball)/ballSize;float bd=length(bp);
+    if(bd<1.0)c=vec4(mix(vec3(.56,.58,.53),vec3(1.0,.99,.91),clamp(.75-bp.y*.35-bp.x*.25,0.0,1.0)),1);
+    if(length(bp-vec2(-.30,-.34))<.24)c=vec4(1,1,.98,1);
+    // Fixed ivory marker at twelve o'clock. The winning pocket and ball both settle beneath it.
+    if(p.y<-.972&&p.y>-1.034&&abs(p.x)<(p.y+1.034)*.40)c=vec4(.98,.91,.72,1);
+    return c;
+}
+
 vec4 effectPixel(vec2 q,vec2 size,int kind,int a,int b,float age,bool motion,bool eventLive){
     if(any(lessThan(q,vec2(0)))||any(greaterThanEqual(q,size)))return vec4(0);
     float t=eventLive&&motion?max(0.0,age):100.0;vec4 c=vec4(0);
+    if(kind==0)return rouletteWheel(q,size,a,b,t,eventLive&&motion);
     if(kind==6)return playingCard(q,size,a,b,t,eventLive&&motion);
     if(kind==7)return chipStack(q,size,a,b,t,eventLive&&motion);
     if(kind==1){

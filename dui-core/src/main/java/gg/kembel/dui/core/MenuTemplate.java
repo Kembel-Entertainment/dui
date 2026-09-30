@@ -61,6 +61,8 @@ public final class MenuTemplate {
           "style",
           "layer",
           "surface",
+          "hitbox",
+          "wheel",
           "rect",
           "playing-card",
           "chip-stack",
@@ -155,7 +157,8 @@ public final class MenuTemplate {
           "lift",
           "palette",
           "from",
-          "to");
+          "to",
+          "variant");
   private static final Pattern BIND = Pattern.compile("\\{\\{([a-zA-Z_][a-zA-Z_0-9.]*)}}");
   private final Element root;
   private final Map<String, Map<String, String>> styles = new HashMap<>();
@@ -412,6 +415,15 @@ public final class MenuTemplate {
           throw new IllegalArgumentException("Layer overflow: " + ch.type);
         draw(c, ch, x + cx, y + cy, cw, chh, overlays, true, images);
       }
+      return;
+    }
+    if (n.type.equals("hitbox")) {
+      String id = n.s("id", ""), action = n.s("action", "");
+      if (id.isBlank() || action.isBlank())
+        throw new IllegalArgumentException("Hitbox needs id and action");
+      c.hit(
+          new Canvas.Hit(
+              id, n.b("locked") ? "" : action, n.s("payload", ""), n.s("tooltip", ""), x, y, w, h));
       return;
     }
     if (n.type.equals("rect")) {

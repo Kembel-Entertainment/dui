@@ -5,7 +5,8 @@ final class EffectComponent {
   private EffectComponent() {}
 
   static boolean supports(String tag) {
-    return java.util.Set.of("reel", "lever", "particles", "lights", "playing-card", "chip-stack")
+    return java.util.Set.of(
+            "wheel", "reel", "lever", "particles", "lights", "playing-card", "chip-stack")
         .contains(tag);
   }
 
@@ -27,6 +28,18 @@ final class EffectComponent {
     ShaderEffect.Kind kind;
     int a, b;
     switch (n.type()) {
+      case "wheel" -> {
+        choice(n, "variant", "european", "european");
+        int value = number(n, "value", 0, 0, 36);
+        int previous = number(n, "previous", value, 0, 36);
+        int mode = choice(n, "animation", "static", "static", "spin");
+        int palette = choice(n, "palette", "walnut", "walnut", "ebony");
+        if (w != h || w < 96)
+          throw new IllegalArgumentException("Wheel needs a square of at least 96px");
+        kind = ShaderEffect.Kind.WHEEL;
+        a = value | (previous << 6) | (number(n, "turns", 4, 1, 7) << 12);
+        b = number(n, "duration", 140, 20, 511) | (mode << 9) | (palette << 10);
+      }
       case "playing-card" -> {
         int card = number(n, "value", -1, -1, 51), delay = number(n, "delay", 0, 0, 62);
         if (delay % 2 != 0) throw new IllegalArgumentException("Card delay uses even ticks");

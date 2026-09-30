@@ -6,6 +6,7 @@ public record ShaderEffect(
   public static final int LIMIT = 8, CELLS = 23;
 
   public enum Kind {
+    WHEEL(0),
     REEL(1),
     LEVER(2),
     COINS(3),
@@ -22,6 +23,7 @@ public record ShaderEffect(
 
   public int lifetimeTicks() {
     return switch (kind) {
+      case WHEEL -> (parameter1 & 512) == 0 ? 0 : parameter1 & 511;
       case REEL -> parameter1 & 127;
       case LEVER -> parameter0;
       case COINS -> (parameter0 >> 9) == 0 ? 0 : ((parameter1 >> 9) & 63) * 2 + 94;
