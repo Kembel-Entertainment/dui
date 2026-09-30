@@ -4,7 +4,7 @@
 
 Built by [Kembel Entertainment](https://kembel.gg). Java packages and Maven group: `gg.kembel.dui`.
 
-Start with [your first plugin](docs/quickstart.md), a complete buildable example. For coding agents, supply [the LLM guide](docs/llm-guide.md); [llms.txt](llms.txt) indexes the documentation.
+Start with [your first plugin](docs/quickstart.md), a complete buildable example, then [application recipes](docs/recipes.md) for stateful controls, media and forms. For coding agents, supply [the LLM guide](docs/llm-guide.md); [llms.txt](llms.txt) indexes the documentation.
 
 | Module | Purpose |
 | --- | --- |

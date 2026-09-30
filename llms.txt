@@ -7,7 +7,8 @@
 - [Coding-agent guide](docs/llm-guide.md): Compact API contract, template semantics, lifecycle rules, media, pack deployment, limits and a reusable prompt. Start here when supplying dui context to an LLM.
 - [First plugin](docs/quickstart.md): Complete Gradle, plugin.yml, config, XML and Java example with deployment steps.
 - [README](README.md): Module overview, local Maven build, embedding and pack generation.
-- [Components](docs/components.md): Supported layout, control, media and effect tags.
+- [Components](docs/components.md): Per-component attributes, defaults, bounds, layout rules, action payloads and unsupported/unused parameters.
+- [Application recipes](docs/recipes.md): Stateful controls with a complete controller, repeats, item/image/link keys, async updates, native forms, deployment and troubleshooting. Include this for building consumer plugins.
 - [Architecture](docs/architecture.md): Canvas rendering, font positioning, native model carriers and callback transport.
 - [Rendering protocol](docs/rendering.md): Negative spacing with Unicode addresses and pen arithmetic, vertical band fonts, invisible hit spans, runtime rasters, native item/shader payload and debugging invariants. Include this for renderer or pack changes.
 - [dui-demo](https://github.com/Kembel-Entertainment/dui-demo): Companion consumer with examples and real-client integration tests.

@@ -13,6 +13,8 @@ This file is a compact implementation contract for **dui 0.1.0-SNAPSHOT**, a Wor
 
 Use [quickstart.md](quickstart.md) for a complete plugin, Gradle configuration, plugin.yml, config and template. [components.md](components.md) lists supported tags. [architecture.md](architecture.md) explains the rendering transport. Public adapter source is under `dui-paper/src/main/java/gg/kembel/dui/paper/`.
 
+For application work, include [recipes.md](recipes.md): stateful checkbox/dropdown handlers, repeated rows, item/image/link keys, guarded async image updates, native forms, deployment and troubleshooting. The component reference lists actual defaults/bounds and attributes consumed by each tag; a globally recognized attribute can still be unused on a particular component.
+
 For renderer or pack work, also supply [rendering.md](rendering.md). It documents the actual negative-spacing/font protocol, glyph advances, 9-pixel band splitting, hit-first ordering and native-item shader payload. Maintain `shift(x) + glyph advance A + shift(-(x+A)) = 0` for each placement; a bitmap's visible width is not its advance. Invisible positive spans own the clicks; decorations draw after them. These transport details are handled by dui when using templates.
 
 ## Public API
@@ -81,7 +83,7 @@ Use `row`, `column` and `grid` for flow, and `layer` for positioned children. Fi
 
 ## Media, controls and effects
 
-- `id` identifies a hit/placement; `action` is the handler route; `value` is application payload. Do not encode business authorization in the label. `locked="true"` leaves a tooltip but emits no action.
+- `id` identifies a hit/placement; `action` is the handler route; `value` is application payload. Do not encode business authorization in the label. Controls that implement `locked="true"` keep a tooltip but emit no action. Slots and tree nodes do not consume `locked`; their action must be empty to make them inert. Tree status is visual, and all business authorization belongs in the handler.
 - Dropdowns have `open`, `action`, `select`, `dismiss` and `dui-option` children. The application controls opening, selected value and closing. See dui-demo's showcase templates and `ShowcaseState`.
 - `dui-item id="example" ... size="36"` and `dui-slot id="example" ...` require `items.get("example")`. Native ItemStacks retain model/profile/pattern/glint components. Vanilla items already have wrappers in the generated pack; custom item definitions require pack additions.
 - `dui-head` uses native portrait object components. For a large 3D head, supply a player-head ItemStack through `dui-item` or `dui-slot` instead.
