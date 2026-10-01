@@ -17,6 +17,11 @@ in vec4 vertexColor;
 in vec2 texCoord0;
 #ifdef IS_GUI
 flat in int focusGuard;
+flat in int playerFlags;
+in vec2 playerPoint;
+flat in vec2 playerSize;
+layout(std140) uniform Globals {ivec3 CameraBlockPos;vec3 CameraOffset;vec2 ScreenSize;float GlintAlpha;float GameTime;int MenuBlurRadius;int UseRgss;};
+// PLAYER_FUNCTIONS
 flat in vec2 guardSize;
 in vec2 guardPoint;
 #endif
@@ -25,6 +30,7 @@ out vec4 fragColor;
 
 void main() {
 #ifdef IS_GUI
+    if(playerFlags>=0){vec4 player=playerSkinPixel(Sampler0,playerPoint,playerSize,playerFlags,GameTime*1200.0);if(player.a<.1)discard;fragColor=player*ColorModulator;return;}
     if(focusGuard==1){
         // Cover the native padded focus stroke. The centre remains fully transparent.
         if(guardPoint.x>=2.0&&guardPoint.y>=2.0&&guardPoint.x<guardSize.x-2.0&&guardPoint.y<guardSize.y-2.0)discard;

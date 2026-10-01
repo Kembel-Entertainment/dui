@@ -14,12 +14,26 @@ public record Scene(
     List<Canvas.Hit> hits,
     List<ShaderEffect> effects,
     List<Coverage> coverage,
-    List<Node> nodes) {
+    List<Node> nodes,
+    List<Canvas.PlayerModel> playerModels) {
+  public Scene(
+      List<Canvas.Paint> paints,
+      List<Canvas.Image> images,
+      List<Canvas.Head> heads,
+      List<Canvas.Item> items,
+      List<Canvas.Hit> hits,
+      List<ShaderEffect> effects,
+      List<Coverage> coverage,
+      List<Node> nodes) {
+    this(paints, images, heads, items, hits, effects, coverage, nodes, List.of());
+  }
+
   public enum Backend {
     BACKGROUND_IMAGE,
     FONT,
     IMAGE,
     HEAD,
+    PLAYER_MODEL,
     NATIVE,
     EFFECT,
     HIT
@@ -48,7 +62,18 @@ public record Scene(
   }
 
   public record Coverage(
-      String id, Rect bounds, int imageIndex, int headIndex, int itemIndex, int effectIndex) {}
+      String id,
+      Rect bounds,
+      int imageIndex,
+      int headIndex,
+      int itemIndex,
+      int effectIndex,
+      int playerIndex) {
+    public Coverage(
+        String id, Rect bounds, int imageIndex, int headIndex, int itemIndex, int effectIndex) {
+      this(id, bounds, imageIndex, headIndex, itemIndex, effectIndex, 0);
+    }
+  }
 
   public Scene {
     paints = List.copyOf(paints);
@@ -59,6 +84,7 @@ public record Scene(
     effects = List.copyOf(effects);
     coverage = List.copyOf(coverage);
     nodes = List.copyOf(nodes);
+    playerModels = List.copyOf(playerModels);
   }
 
   public static Scene of(Canvas c) {
@@ -102,7 +128,19 @@ public record Scene(
           effect.height());
     for (var hit : c.hits)
       node(nodes, c, hit, Backend.HIT, hit.id(), hit.x(), hit.y(), hit.width(), hit.height());
-    return new Scene(c.paints, c.images, c.heads, c.items, c.hits, c.effects, c.coverage, nodes);
+    for (var model : c.playerModels)
+      node(
+          nodes,
+          c,
+          model,
+          Backend.PLAYER_MODEL,
+          model.id(),
+          model.x(),
+          model.y(),
+          model.width(),
+          model.height());
+    return new Scene(
+        c.paints, c.images, c.heads, c.items, c.hits, c.effects, c.coverage, nodes, c.playerModels);
   }
 
   private static void node(
@@ -167,11 +205,12 @@ public record Scene(
     for (int i = 0; i < images.size(); i++) {
       var v = images.get(i);
       final int index = i;
-      if (coverage.stream()
-          .noneMatch(
-              o ->
-                  index < o.imageIndex()
-                      && o.bounds().overlaps(v.x(), v.y(), v.width(), v.height())))
+      if (v.background()
+          || coverage.stream()
+              .noneMatch(
+                  o ->
+                      index < o.imageIndex()
+                          && o.bounds().overlaps(v.x(), v.y(), v.width(), v.height())))
         result.images.add(v);
     }
     for (int i = 0; i < heads.size(); i++) {
@@ -198,6 +237,16 @@ public record Scene(
                   index < o.effectIndex()
                       && o.bounds().overlaps(v.x(), v.y(), v.width(), v.height())))
         result.effects.add(v);
+    }
+    for (int i = 0; i < playerModels.size(); i++) {
+      var v = playerModels.get(i);
+      final int index = i;
+      if (coverage.stream()
+          .noneMatch(
+              o ->
+                  index < o.playerIndex()
+                      && o.bounds().overlaps(v.x(), v.y(), v.width(), v.height())))
+        result.playerModels.add(v);
     }
     return result;
   }

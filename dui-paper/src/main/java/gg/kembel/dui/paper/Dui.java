@@ -119,6 +119,7 @@ public final class Dui implements Listener, AutoCloseable {
   public DialogSession open(
       Player player, Canvas canvas, ViewModel model, DialogOptions options, ActionHandler handler) {
     mainThread();
+    validate(canvas, model);
     var previous = sessions.get(player.getUniqueId());
     if (previous != null) dismiss(previous, false);
     var session = new DialogSession(this, player);
@@ -151,8 +152,13 @@ public final class Dui implements Listener, AutoCloseable {
         DialogAction.customClick(action(s, hit, closes), null));
   }
 
+  void validate(Canvas canvas, ViewModel model) {
+    metadata.validate(canvas);
+    model.validate(canvas);
+  }
+
   void display(DialogSession s) {
-    metadata.validate(s.canvas);
+    validate(s.canvas, s.model);
     callbacks.invalidate(s.player.getUniqueId());
     if (!ready.contains(s.player.getUniqueId())) {
       offerPack(s.player);
@@ -174,12 +180,24 @@ public final class Dui implements Listener, AutoCloseable {
                 itemSnapshots.containsKey(hit.id())
                     ? itemSnapshots.get(hit.id()).asHoverEvent()
                     : HoverEvent.showText(
-                        Component.text(hit.tooltip().isBlank() ? hit.id() : hit.tooltip())));
+                        Component.text(hit.tooltip().isBlank() ? hit.id() : hit.tooltip())),
+            (player, band) ->
+                NativePlayerModels.band(
+                    player,
+                    Objects.requireNonNull(
+                        model.appearances().get(player.source()),
+                        "Missing player appearance: " + player.source()),
+                    band,
+                    c.motionEnabled));
     var body = new ArrayList<DialogBody>();
     body.add(DialogBody.plainMessage(s.component, c.width + 12));
     body.addAll(
         ShaderItems.bodies(
-            c, itemSnapshots, metadata.models(), metadata.supports("motion-tracks")));
+            c,
+            itemSnapshots,
+            metadata.models(),
+            metadata.supports("motion-tracks"),
+            model.appearances()));
     var o = s.options;
     var buttons = o.buttons().stream().map(b -> button(s, b, false)).toList();
     var exit = o.exit() == null ? null : button(s, o.exit(), true);

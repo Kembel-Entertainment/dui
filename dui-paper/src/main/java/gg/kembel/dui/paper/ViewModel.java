@@ -10,8 +10,18 @@ public record ViewModel(
     Map<String, Object> data,
     Map<String, RasterImage> images,
     Map<String, ItemStack> items,
-    Map<String, URI> links) {
+    Map<String, URI> links,
+    Map<String, PlayerAppearance> appearances) {
+  public ViewModel(
+      Map<String, Object> data,
+      Map<String, RasterImage> images,
+      Map<String, ItemStack> items,
+      Map<String, URI> links) {
+    this(data, images, items, links, Map.of());
+  }
+
   public ViewModel {
+    appearances = Map.copyOf(appearances);
     data = Map.copyOf(data);
     images = Map.copyOf(images);
     var cloned = new HashMap<String, ItemStack>();
@@ -29,6 +39,13 @@ public record ViewModel(
     var copy = new HashMap<String, ItemStack>();
     items.forEach((key, item) -> copy.put(key, item.clone()));
     return Collections.unmodifiableMap(copy);
+  }
+
+  /** Resource checks happen before pack prompts; projection never resolves a skin. */
+  public void validate(Canvas canvas) {
+    for (var model : canvas.renderPlan().playerModels)
+      if (!appearances.containsKey(model.source()))
+        throw new IllegalArgumentException("Missing player appearance: " + model.source());
   }
 
   public static ViewModel data(Map<String, Object> data) {

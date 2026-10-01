@@ -101,3 +101,6 @@ See [quickstart](docs/quickstart.md), [LLM guide](docs/llm-guide.md), [component
 ## Extension APIs and roadmap
 
 Read [Component composition and UI work](docs/composition.md) for implemented component registries, template fragments, session tasks, relative layout, pagination and resource planning. The [completed abstraction roadmap](docs/roadmap.md) records the migration and backend boundaries. [Application APIs](docs/application-api.md) cover controllers, collections, tokens, resources, tracks, extensions and testing; [compatibility](docs/compatibility.md) defines the WIP release contract.
+
+
+Full-body GPU skins and vanilla armor are exposed by `dui-player-model` and `ViewModel.appearances`. See [the player-model contract](docs/player-model.md) for geometry, dynamic profiles, capability negotiation and v1 limitations. The separate demo uses this API for its Aster character sheet with real inventory equipment.

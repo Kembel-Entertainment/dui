@@ -55,6 +55,22 @@ public final class CanvasRenderer {
       Function<Canvas.Hit, ClickEvent> callback,
       Function<Canvas.Head, Component> headRenderer,
       Function<Canvas.Hit, HoverEvent<?>> tooltip) {
+    return renderActions(
+        canvas,
+        callback,
+        headRenderer,
+        tooltip,
+        (model, band) -> {
+          throw new IllegalArgumentException("Player models require appearance resources");
+        });
+  }
+
+  public Component renderActions(
+      Canvas canvas,
+      Function<Canvas.Hit, ClickEvent> callback,
+      Function<Canvas.Head, Component> headRenderer,
+      Function<Canvas.Hit, HoverEvent<?>> tooltip,
+      java.util.function.BiFunction<Canvas.PlayerModel, Integer, Component> playerRenderer) {
     canvas = canvas.renderPlan();
     Map<String, ClickEvent> actions = new HashMap<>();
     for (var hit : canvas.hits)
@@ -124,6 +140,11 @@ public final class CanvasRenderer {
           line.append(shift(head.x()))
               .append(headRenderer.apply(head))
               .append(shift(-head.x() - 8));
+      for (var model : canvas.playerModels)
+        if (y >= model.y() && y < model.y() + model.height())
+          line.append(shift(model.x()))
+              .append(playerRenderer.apply(model, (y - model.y()) / 9))
+              .append(shift(-model.x() - 8));
       // Intrinsic width must cover every intermediate pen position, including bitmap's +1 advance.
       line.append(shift(canvas.width + 2));
       result.append(line.build());

@@ -33,7 +33,14 @@ public final class PackGenerator {
       }
     var effects = PackContribution.merge(contributions, additions);
     var capabilities =
-        new TreeSet<>(Set.of("native", "effects-8", "clips", "motion-tracks", "effects-32"));
+        new TreeSet<>(
+            Set.of(
+                "native",
+                "effects-8",
+                "clips",
+                "motion-tracks",
+                "effects-32",
+                gg.kembel.dui.core.PlayerModelCodec.CAPABILITY));
     for (var effect : effects) capabilities.add("effect:" + effect.id() + "@" + effect.code());
     Files.createDirectories(output);
     try (var assets = new VanillaAssets(clientJar)) {
@@ -57,6 +64,7 @@ public final class PackGenerator {
       pack = bytes.toByteArray();
       var models = new TreeSet<>(assets.itemDefinitions().keySet());
       models.add("dui:effect/panel");
+      models.addAll(PlayerArmorPack.models());
       for (String name : additions.keySet())
         if (name.matches("assets/[^/]+/items/.+\\.json")) {
           var parts = name.split("/", 4);

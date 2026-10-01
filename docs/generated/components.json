@@ -1009,11 +1009,13 @@
       "color",
       "column-span",
       "columns",
+      "cover",
       "cross-align",
       "detail",
       "disabled-border",
       "disabled-color",
       "disabled-fill",
+      "dismiss",
       "dock",
       "fill",
       "gap",
@@ -1044,6 +1046,7 @@
     "constraints": "Allocated rectangles must fit; hit rows use multiples of nine",
     "cost": "paints/hits",
     "defaults": {
+      "cover": "false",
       "gap": "0",
       "locked": "false"
     },
@@ -1497,6 +1500,54 @@
       "locked": "false"
     },
     "name": "particles"
+  },
+  "player-model": {
+    "attributes": [
+      "active-border",
+      "active-color",
+      "active-fill",
+      "anchor-x",
+      "anchor-y",
+      "bevel",
+      "border",
+      "class",
+      "color",
+      "column-span",
+      "disabled-border",
+      "disabled-color",
+      "disabled-fill",
+      "dock",
+      "facing",
+      "fill",
+      "height",
+      "highlight",
+      "id",
+      "idle",
+      "max-height",
+      "max-width",
+      "min-height",
+      "min-width",
+      "outer-layer",
+      "padding",
+      "row-span",
+      "selected-border",
+      "selected-color",
+      "selected-fill",
+      "source",
+      "width",
+      "x",
+      "y"
+    ],
+    "backend": "player-model-v1",
+    "constraints": "Full-body GPU skin and vanilla armor; source is an appearance key; facing 0..7; contained in 48x72, 72x108, 108x162 or 144x216",
+    "cost": "player model / nine-pixel skin bands / up to four armor carriers",
+    "defaults": {
+      "facing": "0",
+      "idle": "true",
+      "outer-layer": "true",
+      "source": "viewer"
+    },
+    "name": "player-model"
   },
   "playing-card": {
     "attributes": [

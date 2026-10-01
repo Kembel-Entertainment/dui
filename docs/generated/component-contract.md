@@ -208,9 +208,9 @@ Allocated rectangles must fit; hit rows use multiples of nine
 
 Backend: font. Cost: paints/hits.
 
-Supported properties: `action`, `active`, `active-border`, `active-color`, `active-fill`, `anchor-x`, `anchor-y`, `bevel`, `border`, `class`, `color`, `column-span`, `columns`, `cross-align`, `detail`, `disabled-border`, `disabled-color`, `disabled-fill`, `dock`, `fill`, `gap`, `height`, `highlight`, `icon`, `id`, `label`, `locked`, `max-height`, `max-width`, `min-height`, `min-width`, `padding`, `payload`, `row-span`, `selected-border`, `selected-color`, `selected-fill`, `title`, `tone`, `tooltip`, `width`, `x`, `y`.
+Supported properties: `action`, `active`, `active-border`, `active-color`, `active-fill`, `anchor-x`, `anchor-y`, `bevel`, `border`, `class`, `color`, `column-span`, `columns`, `cover`, `cross-align`, `detail`, `disabled-border`, `disabled-color`, `disabled-fill`, `dismiss`, `dock`, `fill`, `gap`, `height`, `highlight`, `icon`, `id`, `label`, `locked`, `max-height`, `max-width`, `min-height`, `min-width`, `padding`, `payload`, `row-span`, `selected-border`, `selected-color`, `selected-fill`, `title`, `tone`, `tooltip`, `width`, `x`, `y`.
 
-Defaults: {gap=0, locked=false}.
+Defaults: {cover=false, gap=0, locked=false}.
 
 ## dui-lever
 
@@ -301,6 +301,16 @@ Backend: shader. Cost: one effect.
 Supported properties: `action`, `active-border`, `active-color`, `active-fill`, `anchor-x`, `anchor-y`, `bevel`, `border`, `class`, `color`, `column-span`, `count`, `delay`, `disabled-border`, `disabled-color`, `disabled-fill`, `dock`, `effect`, `fill`, `height`, `highlight`, `id`, `locked`, `max-height`, `max-width`, `min-height`, `min-width`, `origin-x`, `origin-y`, `padding`, `payload`, `row-span`, `selected-border`, `selected-color`, `selected-fill`, `tooltip`, `width`, `x`, `y`.
 
 Defaults: {locked=false}.
+
+## dui-player-model
+
+Full-body GPU skin and vanilla armor; source is an appearance key; facing 0..7; contained in 48x72, 72x108, 108x162 or 144x216
+
+Backend: player-model-v1. Cost: player model / nine-pixel skin bands / up to four armor carriers.
+
+Supported properties: `active-border`, `active-color`, `active-fill`, `anchor-x`, `anchor-y`, `bevel`, `border`, `class`, `color`, `column-span`, `disabled-border`, `disabled-color`, `disabled-fill`, `dock`, `facing`, `fill`, `height`, `highlight`, `id`, `idle`, `max-height`, `max-width`, `min-height`, `min-width`, `outer-layer`, `padding`, `row-span`, `selected-border`, `selected-color`, `selected-fill`, `source`, `width`, `x`, `y`.
+
+Defaults: {facing=0, idle=true, outer-layer=true, source=viewer}.
 
 ## dui-playing-card
 

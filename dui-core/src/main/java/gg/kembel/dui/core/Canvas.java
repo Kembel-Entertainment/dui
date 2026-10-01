@@ -14,6 +14,18 @@ public final class Canvas {
    */
   public record Head(int x, int y, String source, boolean hat) {}
 
+  /** Contained orthographic full-body viewport; source refers to ViewModel.appearances. */
+  public record PlayerModel(
+      String id,
+      String source,
+      int x,
+      int y,
+      int width,
+      int height,
+      int facing,
+      boolean outerLayer,
+      boolean idle) {}
+
   public record Item(String id, int x, int y, int size) {}
 
   public record Image(
@@ -67,6 +79,7 @@ public final class Canvas {
   public final int width, height;
   public final List<Paint> paints = new ArrayList<>();
   public final List<Head> heads = new ArrayList<>();
+  public final List<PlayerModel> playerModels = new ArrayList<>();
   public final List<Item> items = new ArrayList<>();
   public final List<Image> images = new ArrayList<>();
   public final List<Hit> hits = new ArrayList<>();
@@ -123,7 +136,8 @@ public final class Canvas {
             images.size(),
             heads.size(),
             items.size(),
-            effects.size()));
+            effects.size(),
+            playerModels.size()));
   }
 
   public Canvas renderPlan() {
@@ -229,6 +243,37 @@ public final class Canvas {
       throw new IllegalArgumentException("Head needs a player or skin resource");
     bounds(x, y, 8, 8);
     heads.add(record(new Head(x, y, source, hat)));
+  }
+
+  public void playerModel(
+      String id,
+      String source,
+      int x,
+      int y,
+      int w,
+      int h,
+      int facing,
+      boolean outerLayer,
+      boolean idle) {
+    if (id == null
+        || id.isBlank()
+        || source == null
+        || source.isBlank()
+        || facing < 0
+        || facing > 7
+        || y % 9 != 0
+        || h % 9 != 0)
+      throw new IllegalArgumentException(
+          "Player model needs an id, appearance, facing 0..7 and nine-pixel rows");
+    bounds(x, y, w, h);
+    if (playerModels.stream().anyMatch(p -> p.id().equals(id)))
+      throw new IllegalArgumentException("Duplicate player model id: " + id);
+    int height = PlayerModelCodec.height(Math.min(h, w * 3 / 2)), width = height * 2 / 3;
+    int top = y + ((h - height) / 18) * 9;
+    playerModels.add(
+        record(
+            new PlayerModel(
+                id, source, x + (w - width) / 2, top, width, height, facing, outerLayer, idle)));
   }
 
   public void effect(ShaderEffect effect) {

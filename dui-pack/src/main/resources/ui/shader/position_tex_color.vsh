@@ -27,6 +27,9 @@ in vec2 UV0;
 in vec4 Color;
 uniform sampler2D Sampler0;
 
+flat out int playerArmorFlags;
+out vec2 playerArmorPoint;
+flat out vec2 playerArmorSize;
 out vec2 clipPoint;
 flat out vec4 itemClip;
 out vec2 texCoord0;
@@ -49,6 +52,7 @@ float easeMotion(float u,int easing){if(easing==1)return 1.0-pow(1.0-u,3.0);if(e
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
+    playerArmorFlags=-1;playerArmorPoint=vec2(0);playerArmorSize=vec2(0);
     itemClip = vec4(0.0);
     clipPoint = vec2(0.0);
     texCoord0 = UV0;
@@ -78,8 +82,9 @@ void main() {
     }
     if(any(lessThan(hi-lo,vec3(0.1)))) return;
     vec3 threshold=(hi+lo)*0.5;
+    bool playerArmor=all(equal(ivec3(greaterThan(signature[1].rgb,threshold)),ivec3(1,1,0)))&&all(equal(ivec3(greaterThan(signature[2].rgb,threshold)),ivec3(0,1,0)));
     for(int i=0;i<4;i++) {
-        if(signature[i].a<0.9 || any(notEqual(ivec3(greaterThan(signature[i].rgb,threshold)),magic[i]))) return;
+        if(signature[i].a<0.9 || any(notEqual(ivec3(greaterThan(signature[i].rgb,threshold)),playerArmor?magic[i==1?2:i==2?1:i]:magic[i]))) return;
     }
     uint data=0u;
     for (int i=0; i<10; i++) {
@@ -109,6 +114,11 @@ void main() {
     effectKind=int(duiRead(header,DUI_HEADER_KIND_OFFSET,DUI_HEADER_KIND_BITS));
     effectFlags=int(size);
     if(any(lessThan(burstBounds,vec2(1.0))) || any(greaterThan(burstBounds,vec2(480.0,360.0))))return;
+    if(playerArmor){
+        uint params=0u;for(int i=0;i<6;i++){vec3 rgb=step(threshold,texture(Sampler0,vec2(1.5/48.0,(7.5+float(i)*3.0)/48.0)).rgb);params|=(uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u))<<uint(i*3);}
+        playerArmorFlags=int(params);playerArmorSize=burstBounds;playerArmorPoint=corner*burstBounds;
+        gl_Position=ProjMat*ModelViewMat*vec4(itemOrigin+offset+playerArmorPoint,Position.z,1);return;
+    }
     if(effectKind==4 || effectKind==5){
         for(int i=0;i<48;i++){int side=i/12,col=i%12;float t=7.5+float(col)*3.0;vec2 uv=side==0?vec2(t,4.5):side==1?vec2(t,43.5):side==2?vec2(4.5,t):vec2(43.5,t);vec3 rgb=step(threshold,texture(Sampler0,uv/48.0).rgb);motionCells[i]=uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u);}
         float elapsed=mod(GameTime*24000.0-started+24000.0,24000.0)-float(track(DUI_DELAY_OFFSET,DUI_DELAY_BITS));

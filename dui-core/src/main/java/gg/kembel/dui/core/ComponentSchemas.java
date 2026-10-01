@@ -86,7 +86,8 @@ public final class ComponentSchemas {
           map,
           tag,
           "gap padding columns cross-align title label detail icon tone locked active action"
-              + " payload tooltip",
+              + " payload tooltip"
+              + (tag.equals("layer") ? " cover dismiss" : ""),
           "Allocated rectangles must fit; hit rows use multiples of nine",
           "paints/hits",
           "font");
@@ -151,6 +152,14 @@ public final class ComponentSchemas {
         "Unique identity; valid parent references",
         "paints/hits",
         "font");
+    put(
+        map,
+        "player-model",
+        "source facing outer-layer idle",
+        "Full-body GPU skin and vanilla armor; source is an appearance key; facing 0..7; contained"
+            + " in 48x72, 72x108, 108x162 or 144x216",
+        "player model / nine-pixel skin bands / up to four armor carriers",
+        "player-model-v1");
     put(
         map,
         "head",
@@ -272,6 +281,10 @@ public final class ComponentSchemas {
     var defaults = new HashMap<String, String>();
     if (set.contains("gap")) defaults.put("gap", "0");
     if (set.contains("locked")) defaults.put("locked", "false");
+    if (name.equals("player-model"))
+      defaults.putAll(
+          Map.of("source", "viewer", "facing", "0", "outer-layer", "true", "idle", "true"));
+    if (name.equals("layer")) defaults.put("cover", "false");
     if (name.equals("menu")) {
       defaults.put("width", "440");
       defaults.put("height", "306");

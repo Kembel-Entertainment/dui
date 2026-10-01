@@ -140,3 +140,6 @@ The consumer must choose results, reserve stakes, validate every action, prevent
 ## Consumer extension APIs
 
 Use the implemented [composition APIs](composition.md) to register owner-prefixed components, pass typed map/list properties, project caller content and manage view/session UI tasks. Custom Java renderers compose existing Canvas primitives and do not install GPU opcodes. Use Page and RenderBudget for clamped collections and explicit resource priorities. Text wrapping uses the injected font metrics; layers support relative dimensions and anchors. Use [application-api.md](application-api.md) for implemented controllers/catalogues, explicit profiles, token styles, scene planning, resource handles, generic GPU tracks, opt-in batching, optional components and portable tests. See [compatibility](compatibility.md) before generating/deploying a matching pack. Durable game transactions must never depend on a cancellable UI task scope.
+
+
+For full-body skins and vanilla armor, see [the player model contract](player-model.md). Use `dui-player-model` with `ViewModel.appearances`; appearance capture and inventory changes belong outside projection. Rich popup layers support `cover` and `dismiss`.

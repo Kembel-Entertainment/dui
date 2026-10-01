@@ -472,6 +472,7 @@ public final class MenuTemplate {
       case "divider", "spacer", "badge", "progress" -> 9;
       case "card", "empty" -> 72;
       case "slot" -> 63;
+      case "player-model" -> 216;
       case "stat" -> 45;
       case "nav", "entry", "dropdown" -> 27;
       case "column", "panel" ->
@@ -593,6 +594,18 @@ public final class MenuTemplate {
       return;
     }
     if (n.type.equals("layer")) {
+      if (n.b("cover")) c.cover(n.s("id", "popup"), x, y, w, h);
+      if (!n.s("dismiss", "").isBlank())
+        c.hit(
+            new Canvas.Hit(
+                n.s("id", "popup") + "_dismiss",
+                n.s("dismiss", ""),
+                "",
+                "Close options",
+                0,
+                0,
+                c.width,
+                c.height));
       int left = 0, top = 0, right = w, bottom = h;
       for (Node ch : n.children) {
         String dock = ch.s("dock", "");
@@ -907,6 +920,17 @@ public final class MenuTemplate {
     int ty = y + Math.max(0, (h - 9) / 2);
     boolean locked = n.b("locked");
     switch (n.type) {
+      case "player-model" ->
+          c.playerModel(
+              n.s("id", "player"),
+              n.s("source", "viewer"),
+              x,
+              y,
+              w,
+              h,
+              n.n("facing", 0),
+              !n.s("outer-layer", "true").equals("false"),
+              !n.s("idle", "true").equals("false"));
       case "head" -> {
         int hy = y + (h >= 27 ? 9 : 0);
         c.head(x, hy, n.s("player", "self"), !n.s("hat", "true").equals("false"));

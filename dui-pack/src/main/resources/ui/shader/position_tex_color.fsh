@@ -9,6 +9,7 @@ layout(std140) uniform DynamicTransforms {
     mat4 TextureMat;
 };
 
+layout(std140) uniform Globals {ivec3 CameraBlockPos;vec3 CameraOffset;vec2 ScreenSize;float GlintAlpha;float GameTime;int MenuBlurRadius;int UseRgss;};
 uniform sampler2D Sampler0;
 
 in vec2 clipPoint;
@@ -26,6 +27,10 @@ flat in uvec3 effectData[8];
 flat in uvec3 effectMotionA[2];
 flat in uvec2 effectMotionB[2];
 
+flat in int playerArmorFlags;
+in vec2 playerArmorPoint;
+flat in vec2 playerArmorSize;
+// PLAYER_FUNCTIONS
 out vec4 fragColor;
 
 float random(float n) { return fract(sin(n*127.1+311.7)*43758.5453); }
@@ -33,6 +38,7 @@ float random(float n) { return fract(sin(n*127.1+311.7)*43758.5453); }
 // EFFECT_FUNCTIONS
 
 void main() {
+    if(playerArmorFlags>=0){vec4 c=playerArmorPixel(Sampler0,playerArmorPoint,playerArmorSize,playerArmorFlags,GameTime*1200.0);if(c.a<.1)discard;fragColor=c*ColorModulator;return;}
     if((effectKind==3 || effectKind==5) && (any(lessThan(clipPoint,itemClip.xy)) || any(greaterThanEqual(clipPoint,itemClip.zw))))discard;
     if(effectKind==1 || effectKind==6 || effectKind==7){vec4 panel=shaderEffects(burstPoint,burstAge,effectFlags);if(panel.a==0.0)discard;fragColor=panel*ColorModulator;return;}
     vec4 color = texture(Sampler0, texCoord0) * vertexColor;

@@ -216,3 +216,6 @@ Scene planning handles dropdown coverage before backend emission. It suppresses 
 PackContribution supplies owned resources plus named GLSL functions with IDs/codes validated for collisions. The generator inserts trusted build-time functions into the shared shader and emits manifest capabilities. The demo's pulse function proves this path in an actual client; runtime template code injection is not supported.
 
 RenderReport counts are capacity diagnostics. Exported component serialization bytes omit native ItemStack payloads and packet framing. DialogSession.renderNanos measures the adapter's component/native/dialog construction on the server, not network transit or GPU time. Client FPS is sampled separately; the local tests are capped and do not establish a maximum safe production budget.
+
+
+For full-body skins and vanilla armor, see [the player model contract](player-model.md). Use `dui-player-model` with `ViewModel.appearances`; appearance capture and inventory changes belong outside projection. Rich popup layers support `cover` and `dismiss`.

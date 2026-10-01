@@ -129,7 +129,8 @@ public final class CanvasPack {
       ShaderItemPack.write(zip, assets, additions, effects);
       FocusGuard.write(zip);
       for (var entry : new TreeMap<>(additions).entrySet())
-        put(zip, entry.getKey(), entry.getValue());
+        if (!entry.getKey().equals("assets/minecraft/atlases/items.json"))
+          put(zip, entry.getKey(), entry.getValue());
     }
     return bytes.toByteArray();
   }

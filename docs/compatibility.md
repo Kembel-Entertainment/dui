@@ -27,3 +27,6 @@ Update adapter, generator, ZIP and metadata together for this migration. Existin
 5. Keep game inputs, generated packs, media, runtime files and reports outside commits. Present changes for review before commit/push under this workspace's AGENTS.md policy.
 
 Source compatibility is checked by retaining existing templates/tests and consumer builds, not promised across future snapshots. A stable release needs independent platform validation, artifact publication and a frozen API policy.
+
+
+Full-body player models declare the separate `player-model-v1` pack capability. Existing item protocol fields and codec hash remain unchanged. Regenerate and deploy the shared pack before using the new component; see [player-model.md](player-model.md) for supported geometry, reserved glyph colors and limitations.

@@ -40,8 +40,20 @@ public final class FocusGuard {
         put(
             zip,
             "assets/minecraft/shaders/core/text." + ext,
-            java.util.Objects.requireNonNull(in).readAllBytes());
+            shader(ext, java.util.Objects.requireNonNull(in).readAllBytes()));
       }
+  }
+
+  private static byte[] shader(String ext, byte[] bytes) throws IOException {
+    if (!ext.equals("fsh")) return bytes;
+    try (var in = FocusGuard.class.getResourceAsStream("/ui/shader/player-model.glsl")) {
+      return new String(bytes, StandardCharsets.UTF_8)
+          .replace(
+              "// PLAYER_FUNCTIONS",
+              new String(
+                  java.util.Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8))
+          .getBytes(StandardCharsets.UTF_8);
+    }
   }
 
   private static void put(ZipOutputStream zip, String path, byte[] bytes) throws IOException {

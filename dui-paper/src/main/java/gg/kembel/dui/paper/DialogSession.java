@@ -85,6 +85,7 @@ public final class DialogSession {
   public void update(Canvas canvas, ViewModel model, DialogOptions options, ActionHandler handler) {
     owner.mainThread();
     if (!active) throw new IllegalStateException("Dialog session is closed");
+    owner.validate(canvas, model);
     viewTasks.close();
     viewTasks = new TaskScope(owner.scheduler(), () -> active && player.isOnline());
     this.canvas = canvas;

@@ -20,6 +20,15 @@ public final class ShaderItems {
 
   public static List<DialogBody> bodies(
       Canvas canvas, Map<String, ItemStack> stacks, Set<String> models, boolean motionTracks) {
+    return bodies(canvas, stacks, models, motionTracks, Map.of());
+  }
+
+  public static List<DialogBody> bodies(
+      Canvas canvas,
+      Map<String, ItemStack> stacks,
+      Set<String> models,
+      boolean motionTracks,
+      Map<String, PlayerAppearance> appearances) {
     canvas = canvas.renderPlan();
     var batches = EffectBatches.of(canvas);
     var renderItems = new ArrayList<Canvas.Item>(canvas.items);
@@ -36,6 +45,13 @@ public final class ShaderItems {
         for (int j = 0; j < batches.size(); j++)
           renderItems.add(at + j, new Canvas.Item(id + "/batch/" + j, 0, 0, 1));
       }
+    }
+    var armor = PlayerArmor.carriers(canvas, appearances);
+    for (var entry : armor.entrySet()) {
+      if (renderItems.stream().anyMatch(item -> item.id().equals(entry.getKey())))
+        throw new IllegalArgumentException("Reserved armor carrier id");
+      var m = entry.getValue().model();
+      renderItems.add(new Canvas.Item(entry.getKey(), m.x(), m.y(), 1));
     }
     var result = new ArrayList<DialogBody>();
     if (renderItems.isEmpty()) return result;
@@ -54,11 +70,15 @@ public final class ShaderItems {
       var item = renderItems.get(i);
       boolean animation =
           canvas.animation != null && item.id().startsWith(canvas.animation.itemId() + "/batch/");
+      var armorCarrier = armor.get(item.id());
       var stack =
-          animation
-              ? new ItemStack(org.bukkit.Material.PAPER)
-              : Objects.requireNonNull(stacks.get(item.id()), "Missing native stack: " + item.id())
-                  .clone();
+          armorCarrier != null
+              ? armorCarrier.stack().clone()
+              : animation
+                  ? new ItemStack(org.bukkit.Material.PAPER)
+                  : Objects.requireNonNull(
+                          stacks.get(item.id()), "Missing native stack: " + item.id())
+                      .clone();
       if (animation) {
         var effectMeta = stack.getItemMeta();
         effectMeta.setItemModel(new NamespacedKey("dui", "effect/panel"));
@@ -99,7 +119,11 @@ public final class ShaderItems {
                   item.x() - canvas.width / 2,
                   item.y() - canvas.height - 14 - (i + 1) * 11,
                   flags,
-                  confetti || animation || transition != null || motion != null));
+                  confetti
+                      || animation
+                      || transition != null
+                      || motion != null
+                      || armorCarrier != null));
       if (confetti)
         payload.addAll(
             ItemTransport.confettiPayload(
@@ -110,6 +134,18 @@ public final class ShaderItems {
       if (animation) {
         int batch = Integer.parseInt(item.id().substring(item.id().lastIndexOf('/') + 1));
         payload.addAll(ItemTransport.animationPayload(canvas, batches.get(batch)));
+      }
+      if (armorCarrier != null) {
+        var model = armorCarrier.model();
+        payload.addAll(ItemTransport.confettiPayload(0, model.width(), model.height(), 0, 0));
+        int code = armorCarrier.flags();
+        for (int j = 0; j < 6; j++) {
+          int bits = (code >> (j * 3)) & 7;
+          payload.add(
+              ((bits & 1) != 0 ? 0xFF0000 : 0)
+                  | ((bits & 2) != 0 ? 0x00FF00 : 0)
+                  | ((bits & 4) != 0 ? 0x0000FF : 0));
+        }
       }
       for (int k = 0; k < payload.size(); k++)
         colors.set(ItemTransport.DATA_INDEX + k, Color.fromRGB(payload.get(k)));

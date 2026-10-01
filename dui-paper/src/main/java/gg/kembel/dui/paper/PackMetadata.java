@@ -25,6 +25,8 @@ public record PackMetadata(
   }
 
   public void validate(Canvas canvas) {
+    if (!canvas.playerModels.isEmpty() && !supports(PlayerModelCodec.CAPABILITY))
+      throw new IllegalArgumentException("Pack lacks player-model-v1 capability");
     for (var effect : canvas.effects)
       if (effect.kind() instanceof ShaderEffect.Extension e
           && !supports("effect:" + e.id() + "@" + e.code()))
@@ -59,7 +61,13 @@ public record PackMetadata(
     var extensionIds = new HashSet<String>();
     var extensionCodes = new HashSet<Integer>();
     for (String capability : capabilities) {
-      if (Set.of("native", "effects-8", "clips", "motion-tracks", "effects-32")
+      if (Set.of(
+              "native",
+              "effects-8",
+              "clips",
+              "motion-tracks",
+              "effects-32",
+              PlayerModelCodec.CAPABILITY)
           .contains(capability)) continue;
       if (!capability.matches("effect:[a-z][a-z0-9_-]*:[a-z][a-z0-9_/-]*@(?:[89]|1[0-5])"))
         throw new IllegalArgumentException("Unknown pack capability: " + capability);

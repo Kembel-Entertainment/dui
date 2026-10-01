@@ -34,6 +34,12 @@ public final class ShaderItemPack {
                 new String(
                     Objects.requireNonNull(protocol).readAllBytes(), StandardCharsets.UTF_8));
       }
+      try (var player = ShaderItemPack.class.getResourceAsStream("/ui/shader/player-model.glsl")) {
+        source =
+            source.replace(
+                "// PLAYER_FUNCTIONS",
+                new String(Objects.requireNonNull(player).readAllBytes(), StandardCharsets.UTF_8));
+      }
       var declarations = new StringBuilder();
       var dispatch = new StringBuilder();
       for (var effect : effects) {
@@ -116,6 +122,7 @@ public final class ShaderItemPack {
         "{\"oversized_in_gui\":true,\"model\":{\"type\":\"minecraft:model\",\"model\":\"dui:item/layer_fence\",\"transformation\":{\"translation\":[0,-7.5,0],\"left_rotation\":[0,0,0,1],\"scale\":[1,16,1],\"right_rotation\":[0,0,0,1]}}}");
     // Procedural components use the otherwise empty 42x42 interior for parameter cells.
     // Native item wrappers keep their original crop and small transport unchanged.
+    put(zip, "assets/dui/models/item/player_armor_transport.json", JSON.toJson(marker));
     var effectMarker = marker.deepCopy();
     var effectElements = legacyElements.deepCopy();
     for (int i = 0; i < ShaderEffect.LIMIT * 24; i++)
@@ -145,6 +152,23 @@ public final class ShaderItemPack {
         "dui:effect/panel",
         JsonParser.parseString(
             "{\"model\":{\"type\":\"minecraft:model\",\"model\":\"dui:effect/panel\"}}"));
+    var armorAtlas = PlayerArmorPack.atlas();
+    byte[] customAtlas = additions.get("assets/minecraft/atlases/items.json");
+    if (customAtlas != null)
+      armorAtlas
+          .getAsJsonArray("sources")
+          .addAll(
+              JsonParser.parseString(new String(customAtlas, StandardCharsets.UTF_8))
+                  .getAsJsonObject()
+                  .getAsJsonArray("sources"));
+    put(zip, "assets/minecraft/atlases/items.json", JSON.toJson(armorAtlas));
+    for (String id : PlayerArmorPack.models()) {
+      put(
+          zip,
+          "assets/dui/models/" + id.substring(4) + ".json",
+          JSON.toJson(PlayerArmorPack.model(id)));
+      definitions.add(id, PlayerArmorPack.definition(id));
+    }
     for (var entry : definitions.entrySet()) {
       var definition = entry.getValue().getAsJsonObject().deepCopy();
       var root = new JsonObject();
@@ -166,9 +190,14 @@ public final class ShaderItemPack {
           "model",
           entry.getKey().equals("dui:effect/panel")
               ? "dui:item/effect_transport"
-              : "dui:item/transport");
+              : entry.getKey().startsWith("dui:player/armor/")
+                  ? "dui:item/player_armor_transport"
+                  : "dui:item/transport");
       var tints = new JsonArray();
-      for (int color : new int[] {0xFF00FF, 0x00FF00, 0xFFFF00, 0x0000FF})
+      for (int color :
+          entry.getKey().startsWith("dui:player/armor/")
+              ? new int[] {0xFF00FF, 0xFFFF00, 0x00FF00, 0x0000FF}
+              : new int[] {0xFF00FF, 0x00FF00, 0xFFFF00, 0x0000FF})
         tints.add(
             JsonParser.parseString("{\"type\":\"minecraft:constant\",\"value\":" + color + "}"));
       for (int i = 0;

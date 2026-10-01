@@ -11,7 +11,33 @@ public record RenderReport(
     int shaderEffects,
     int imagePixels,
     int remainingEffects,
-    int remainingImagePixels) {
+    int remainingImagePixels,
+    int playerModels) {
+  public RenderReport(
+      int width,
+      int height,
+      int paints,
+      int hits,
+      int heads,
+      int nativeItems,
+      int shaderEffects,
+      int imagePixels,
+      int remainingEffects,
+      int remainingImagePixels) {
+    this(
+        width,
+        height,
+        paints,
+        hits,
+        heads,
+        nativeItems,
+        shaderEffects,
+        imagePixels,
+        remainingEffects,
+        remainingImagePixels,
+        0);
+  }
+
   public static final int IMAGE_PIXEL_LIMIT = 16_384;
 
   public static RenderReport of(Canvas canvas) {
@@ -26,6 +52,7 @@ public record RenderReport(
         canvas.effects.size(),
         pixels,
         canvas.effectLimit - canvas.effects.size(),
-        IMAGE_PIXEL_LIMIT - pixels);
+        IMAGE_PIXEL_LIMIT - pixels,
+        canvas.playerModels.size());
   }
 }
