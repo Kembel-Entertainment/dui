@@ -53,37 +53,40 @@ public final class DropdownComponent {
       throw new IllegalArgumentException("Dropdown popup does not fit above or below its field");
     overlays.add(
         () -> {
-          // Native objects render after font paints; suppress objects covered by the popup.
-          c.items.removeIf(i -> overlaps(i.x(), i.y(), i.size(), i.size(), x, top, w, popupHeight));
-          c.heads.removeIf(head -> overlaps(head.x(), head.y(), 8, 8, x, top, w, popupHeight));
-          c.hit(
-              new Canvas.Hit(
-                  id + "_dismiss", dismiss, "", "Close options", 0, 0, c.width, c.height));
-          c.hit(header);
-          c.panel(x, top, w, popupHeight, 0x22232B, 0x58E6DB);
-          for (int i = 0; i < n.children().size(); i++) {
-            var option = n.children().get(i);
-            int oy = top + i * 18;
-            boolean selected = option.s("value", "").equals(value);
-            if (selected) c.rect(x + 1, oy + 1, w - 2, 16, 0x24504C);
-            c.text(
-                x + 7,
-                oy + 4,
-                w - 30,
-                option.s("label", option.s("value", "")),
-                option.b("locked") ? 0x9697A5 : selected ? 0x58E6DB : 0xEAEAF1);
-            if (selected) c.icon(x + w - 17, oy + 4, "check", 0x58E6DB);
-            if (option.b("locked")) c.icon(x + w - 17, oy + 4, "lock", 0x9697A5);
+          var previous = c.style(n.props());
+          try {
+            c.cover(id + "_popup", x, top, w, popupHeight);
             c.hit(
                 new Canvas.Hit(
-                    id + "_option_" + i,
-                    option.b("locked") ? "" : select,
-                    option.s("value", ""),
-                    option.s("tooltip", option.s("label", "")),
-                    x,
-                    oy,
-                    w,
-                    18));
+                    id + "_dismiss", dismiss, "", "Close options", 0, 0, c.width, c.height));
+            c.hit(header);
+            c.panel(x, top, w, popupHeight, 0x22232B, 0x58E6DB);
+            for (int i = 0; i < n.children().size(); i++) {
+              var option = n.children().get(i);
+              int oy = top + i * 18;
+              boolean selected = option.s("value", "").equals(value);
+              if (selected) c.rect(x + 1, oy + 1, w - 2, 16, 0x24504C);
+              c.text(
+                  x + 7,
+                  oy + 4,
+                  w - 30,
+                  option.s("label", option.s("value", "")),
+                  option.b("locked") ? 0x9697A5 : selected ? 0x58E6DB : 0xEAEAF1);
+              if (selected) c.icon(x + w - 17, oy + 4, "check", 0x58E6DB);
+              if (option.b("locked")) c.icon(x + w - 17, oy + 4, "lock", 0x9697A5);
+              c.hit(
+                  new Canvas.Hit(
+                      id + "_option_" + i,
+                      option.b("locked") ? "" : select,
+                      option.s("value", ""),
+                      option.s("tooltip", option.s("label", "")),
+                      x,
+                      oy,
+                      w,
+                      18));
+            }
+          } finally {
+            c.style(previous);
           }
         });
   }

@@ -1,7 +1,7 @@
 package gg.kembel.dui.core;
 
 /** Turns ordinary layout nodes into typed, bounded shader parameters. */
-final class EffectComponent {
+public final class EffectComponent {
   private EffectComponent() {}
 
   static boolean supports(String tag) {
@@ -23,7 +23,7 @@ final class EffectComponent {
     throw new IllegalArgumentException("Unknown " + key + ": " + value);
   }
 
-  static void draw(Canvas c, MenuTemplate.Node n, int x, int y, int w, int h) {
+  public static void draw(Canvas c, MenuTemplate.Node n, int x, int y, int w, int h) {
     String id = n.s("id", "");
     ShaderEffect.Kind kind;
     int a, b;

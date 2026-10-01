@@ -1,8 +1,10 @@
+> Per-component accepted attributes/defaults/constraints/costs are generated from [ComponentSchemas](generated/component-contract.md), with [JSON editor metadata](generated/components.json). Optional `dui-visual-*`/chrome components require `VisualComponents.registry()`; see [application APIs](application-api.md). Legacy visual aliases below remain supported. Default effect budget is eight; explicit protocol-2 budgets may reach 32.
+
 # dui component reference
 
-This reference describes **0.1.0-SNAPSHOT / Minecraft 26.2**. Every tag uses the `dui-` prefix. Templates are well-formed XML, including self-closing empty elements, with a single `dui-menu` root. See [recipes](recipes.md) for templates plus their view data and handlers, and [rendering](rendering.md) for the transport.
+This reference describes **0.1.0-SNAPSHOT / Minecraft 26.2**. Every tag uses the `dui-` prefix. Public custom components and reusable template fragments are described in [composition](composition.md). Templates are well-formed XML, including self-closing empty elements, with a single `dui-menu` root. See [recipes](recipes.md) for templates plus their view data and handlers, and [rendering](rendering.md) for the transport.
 
-Unknown tags/attribute names are rejected. Attribute names currently have a **global** allowlist, not a schema per tag: a recognized name may be accepted on a component that does not use it. The tables below list attributes the component actually consumes. For example, `delay` does not delay a reel, and `duration` does not configure particles. Do not infer support merely because a template parses.
+Unknown tags/attribute names are rejected. Built-in attribute names currently have a **global** allowlist, not a schema per tag: a recognized name may be accepted on a component that does not use it. The tables below list attributes the component actually consumes. For example, `delay` does not delay a reel, and `duration` does not configure particles. Do not infer support merely because a template parses. Registered custom renderers/components have their own declared attribute/property set plus the shared placement attributes.
 
 ## Root, layout and styling
 
@@ -16,7 +18,7 @@ Unknown tags/attribute names are rejected. Attribute names currently have a **gl
 | `column` | `gap=0`, `padding=0` | Fixed/natural child heights consume space first. Children with `height="fill"` share the remainder in full 9-pixel rows. Children receive the column's width. |
 | `grid` | `columns=2`, `gap=0`, `padding=0` | 1–16 columns of equal width. Child natural heights determine each grid row's height. |
 | `panel`, `card` | `gap=0`, `padding=6` | Vertical containers with a frame. A panel's natural height is its children's heights/gaps plus 18; a card defaults to 72. |
-| `layer` | Children: `x=0`, `y=0`, `width=fill`, `height=<natural>` | Positions children relative to the layer. Explicit `height="fill"` uses the remaining height. Children must fit; later hit regions take precedence. |
+| `layer` | Children: `x=0`, `y=0`, `width=fill`, `height=<natural>`, `anchor-x=left`, `anchor-y=top` | Relative dimensions: `fill`, `50%`, `fill-12`, `50%-6`, resolved against parent extent minus inset. Anchors: left/center/right and top/center/bottom; vertical centering snaps to 9-pixel rows. Children must fit; later hit regions take precedence. |
 | `rect` | `fill` | Flat coloured rectangle. Default fill is the background colour. |
 | `surface` | `fill`, `border`, `bevel=1` | Framed surface; bevel 0–4. The rectangle must be large enough for its bevel. |
 | `spacer`, `divider` | `height=9` | Empty flow space / horizontal separator. |
@@ -31,12 +33,12 @@ Colours are `#RRGGBB`. Themes are `default`, `studio` and `studio_dark`; they re
 
 ## Text and status
 
-Text is supplied through attributes such as `label`; element body text is not a label. Labels are single-line, fitted to their bounds and normally shortened with `...`. Unsupported glyphs and control characters become `?`; do not assume browser Unicode shaping or multiline wrapping. Production text widths come from the generated pack metrics.
+Text is supplied through attributes such as `label`; element body text is not a label. Labels normally remain single-line, fitted to their bounds and shortened with `...`. `dui-text wrap="true"` supports bounded word wrapping with `max-lines=3`, also capped by the allocated height/9; lines start at the box top and the last line is fitted with an ellipsis. Unsupported glyphs and control characters become `?`; do not assume browser Unicode shaping. Production text widths come from the generated pack metrics.
 
 | Tag | Natural height | Consumed content/style |
 | --- | ---: | --- |
 | `heading` | 18 | `label`, `color` |
-| `text` | 18 | `label`, `color`, `tone`, `align="center"` (otherwise left) |
+| `text` | 18 | `label`, `color`, `tone`, `align="left\|center\|right"`, `wrap=false`, `max-lines=3` |
 | `badge` | 9 | `label`, `tone` |
 | `stat` | 45 | `label`, `value`, optional `icon`, `tone` |
 | `progress` | 9 | Numeric `value`, `max=100`, `tone`; displayed fraction is clamped to 0–1 |
@@ -93,7 +95,7 @@ Node IDs are unique within the tree and their hits must also be unique across th
 
 ## Shared shader effects
 
-Each effect requires a unique `id` and a bounded allocated rectangle. At most eight effects fit a canvas. They accept optional `action`, `payload`, `tooltip`, `locked`; an actionable rectangle must use full 9-pixel rows. Start timing with root `animation-start="{{startedAt}}"`, from `player.getWorld().getGameTime()`. Tick durations use 20 ticks per second. Outcomes and settlement remain server-side.
+Each effect requires a unique `id` and a bounded allocated rectangle. The default canvas budget is eight; explicit protocol-2 budgets allow up to 32. They accept optional `action`, `payload`, `tooltip`, `locked`; an actionable rectangle must use full 9-pixel rows. Start timing with root `animation-start="{{startedAt}}"`, from `player.getWorld().getGameTime()`. Tick durations use 20 ticks per second. Outcomes and settlement remain server-side.
 
 | Tag | Consumed parameters / defaults | Bounds |
 | --- | --- | --- |
@@ -113,7 +115,7 @@ Use only the parameters listed for each effect. Reel `delay`, particle `duration
 
 `dui-repeat items="rows" as="row"` expands a list, at most 200 items. Supply map elements when binding fields such as `{{row.id}}`. Give repeated hits IDs such as `id="row_{{row.id}}"`; pagination/filtering belongs to the consumer. `dui-if test="{{visible}}"` includes its children only when the bound value is true; precompute comparisons/negation in Java. There is no expression language, automatic iteration index, two-way binding or built-in scroll container.
 
-Templates are limited to 128,000 characters, nesting depth 20 and a 512-node expansion budget per render, including expansion directives. Repeats can hit the canvas/node limits long before 200 items. Compile once where possible, and supply small page-sized lists.
+Templates are limited to 128,000 characters, authored nesting depth 20, component expansion depth 32 and a 512-node expansion budget per render, including expansion directives and projected content. Repeats can hit the canvas/node limits long before 200 items. Compile once where possible, and supply small page-sized lists.
 
 Native text/bool/selection/range inputs are Paper `DialogInput` objects supplied through `DialogOptions`, outside the custom canvas. A template `title` does not set the dialog title; use `DialogOptions.title`. Read submitted values through `ActionContext.response()` and validate them. See the [form recipe](recipes.md#native-form-inputs) and the full [LLM API guide](llm-guide.md).
 
@@ -132,7 +134,7 @@ These are visual primitives, independent of poker state. `playing-card` draws an
 </dui-menu>
 ```
 
-All effects share one root clock and one native carrier. Keep already-settled components `animation="static"` when a different event starts; otherwise changing the root tick replays their animations. Rendering does not advance game state or grant payouts. Replace finite modes with `static`/`animation-start=-1` using one guarded completion task. Root `motion=false` immediately shows final poses. Reserve bounds for the full card/flight; clipping happens at those bounds. A seven-card board plus a chip transfer uses all eight effect slots. If you need more simultaneous animated effects, extend the transport budget deliberately rather than adding ad hoc dialog shaders.
+All effects share one root clock and bounded native carriers. Keep already-settled components `animation="static"` when a different event starts; otherwise changing the root tick replays their animations. Rendering does not advance game state or grant payouts. Replace finite modes with `static`/`animation-start=-1` using one guarded completion task. Root `motion=false` immediately shows final poses. Reserve bounds for the full card/flight; clipping happens at those bounds. A seven-card board plus a chip transfer uses all eight effect slots. For more simultaneous effects declare an explicit effect-budget up to 32 and deploy the matching protocol-2 pack.
 
 ## Wheels and illustrated hit regions
 
@@ -154,4 +156,4 @@ All effects share one root clock and one native carrier. Keep already-settled co
 
 `wheel` is a visual preset, not a roulette game engine. The consumer chooses the outcome, owns the ledger, locks bets and settles exactly once. Keep the original start tick when replacing a view during a spin. The settled ball/pocket sit beneath the fixed twelve-o'clock marker. `turns` controls rotor travel; ball counter-rotation/deceleration are derived from that preset. `animation=static`, root `motion=false`, or an inactive event show the final pose. Explicitly changing Motion in a game still requires app-owned settlement/cancellation logic. Rebuild and deploy a matching pack when first adopting this component; moving it or changing its documented values needs no pack rebuild.
 
-An invisible `hitbox` lets custom artwork, small labels and input geometry compose independently. It does not enlarge native items, track drag gestures, move with animated pixels, or bypass the 9-pixel click-row constraint. Overlapping hits follow normal canvas order (last wins). `locked` leaves the tooltip but clears the callback. Always re-check application state in your handler. All eight effect type codes are now assigned; future new kinds require an explicit transport change rather than truncating an additional code to three bits.
+An invisible `hitbox` lets custom artwork, small labels and input geometry compose independently. It does not enlarge native items, track drag gestures, move with animated pixels, or bypass the 9-pixel click-row constraint. Overlapping hits follow normal canvas order (last wins). `locked` leaves the tooltip but clears the callback. Always re-check application state in your handler. The eight legacy effect codes remain assigned. Protocol-2 extensions use codes 8..15 through validated pack contributions, preserving the legacy three-bit payload.

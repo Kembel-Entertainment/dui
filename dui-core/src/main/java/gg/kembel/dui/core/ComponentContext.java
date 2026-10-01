@@ -1,0 +1,21 @@
+package gg.kembel.dui.core;
+
+import java.util.*;
+import java.util.function.Consumer;
+
+/** Allocated absolute GUI coordinates, shared resources and child/overlay composition. */
+public record ComponentContext(
+    Canvas canvas,
+    MenuTemplate.Node node,
+    int x,
+    int y,
+    int width,
+    int height,
+    Map<String, RasterImage> images,
+    ChildRenderer children,
+    Consumer<Runnable> overlays) {
+  @FunctionalInterface
+  public interface ChildRenderer {
+    void draw(MenuTemplate.Node child, int x, int y, int width, int height);
+  }
+}

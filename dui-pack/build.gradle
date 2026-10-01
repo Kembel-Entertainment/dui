@@ -6,3 +6,5 @@ tasks.register('generatePack', JavaExec) {
  doFirst { if(!project.hasProperty('minecraftJar'))throw new GradleException('Pass -PminecraftJar=/path/to/verified/26.2-client.jar'); args project.property('minecraftJar'), layout.buildDirectory.dir('pack').get().asFile.absolutePath }
 }
 tasks.named('jar') { from(rootProject.file('LICENSE')) { into 'META-INF/dui' }; from(rootProject.file('THIRD_PARTY_NOTICES.md')) { into 'META-INF/dui' } }
+
+tasks.register('componentDocs', JavaExec) { dependsOn classes; classpath=sourceSets.main.runtimeClasspath; mainClass='gg.kembel.dui.pack.ComponentDocumentation'; args rootProject.file('docs/generated').absolutePath }

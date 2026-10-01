@@ -55,6 +55,7 @@ public final class CanvasRenderer {
       Function<Canvas.Hit, ClickEvent> callback,
       Function<Canvas.Head, Component> headRenderer,
       Function<Canvas.Hit, HoverEvent<?>> tooltip) {
+    canvas = canvas.renderPlan();
     Map<String, ClickEvent> actions = new HashMap<>();
     for (var hit : canvas.hits)
       if (!hit.action().isBlank()) actions.put(hit.id(), callback.apply(hit));

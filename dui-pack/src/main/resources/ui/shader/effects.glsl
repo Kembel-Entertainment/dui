@@ -136,9 +136,34 @@ const float wheelTau=6.28318530718;
 const int wheelNumbers[37]=int[37](0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26);
 int wheelIndex(int value){for(int i=0;i<37;i++)if(wheelNumbers[i]==value)return i;return 0;}
 bool wheelRed(int n){return n==1||n==3||n==5||n==7||n==9||n==12||n==14||n==16||n==18||n==19||n==21||n==23||n==25||n==27||n==30||n==32||n==34||n==36;}
-bool wheelDigit(vec2 p,int digit){
+bool wheelDigit(vec2 p,int digit,bool detailed){
+    ivec2 cell=ivec2(floor(p));
+    if(cell.x<0||cell.y<0||cell.x>=(detailed?5:3)||cell.y>=(detailed?7:5))return false;
+    if(detailed){
+        // 5x7 numerals: distinct diagonals and a stem/base on one.
+        // Rows are left-to-right, with the leftmost pixel in the low bit.
+        const int rows[70]=int[70](
+            14,17,17,17,17,17,14, 4,6,4,4,4,4,14,
+            14,17,16,8,4,2,31, 15,16,16,14,16,16,15,
+            8,12,10,9,31,8,8, 31,1,1,15,16,16,15,
+            14,1,1,15,17,17,14, 31,16,8,4,2,2,2,
+            14,17,17,14,17,17,14, 14,17,17,30,16,16,14);
+        return ((rows[clamp(digit,0,9)*7+cell.y]>>cell.x)&1)!=0;
+    }
+    // Small wheels retain a 3x5 font rather than collapsing the extra columns.
     const int digits[10]=int[10](31599,29842,29671,31207,18925,31183,31695,18727,31727,31215);
-    ivec2 cell=ivec2(floor(p));return cell.x>=0&&cell.x<3&&cell.y>=0&&cell.y<5&&((digits[clamp(digit,0,9)]>>(cell.y*3+cell.x))&1)!=0;
+    return ((digits[clamp(digit,0,9)]>>(cell.y*3+cell.x))&1)!=0;
+}
+bool wheelLabel(vec2 p,int number,bool detailed){
+    if(number<10)return wheelDigit(p,number,detailed);
+    return wheelDigit(p,number/10,detailed)||wheelDigit(p-vec2(detailed?6:4,0),number%10,detailed);
+}
+float wheelLabelCoverage(vec2 p,int number,bool detailed,vec2 footprint){
+    // Four screen-space samples smooth rotated strokes without seams between filled cells.
+    return .25*(float(wheelLabel(p+footprint,number,detailed))
+        +float(wheelLabel(p-footprint,number,detailed))
+        +float(wheelLabel(p+vec2(footprint.x,-footprint.y),number,detailed))
+        +float(wheelLabel(p+vec2(-footprint.x,footprint.y),number,detailed)));
 }
 vec3 wheelBrass(float r,float theta){
     float spec=pow(max(0.0,cos(theta+.9)),8.0),groove=.04*sin(r*650.0);
@@ -154,6 +179,19 @@ vec4 rouletteWheel(vec2 q,vec2 size,int a,int b,float t,bool live){
     float wheel=start+travel*(1.0-pow(1.0-u,3.0));
     float angle=mod(theta-wheel+stepAngle*.5,wheelTau),sector=floor(angle/stepAngle);
     int number=wheelNumbers[int(sector)];float localAngle=mod(angle,stepAngle)-stepAngle*.5;
+    bool detailed=radius>=80.0;
+    float columns=detailed?5.0:3.0,rows=detailed?7.0:5.0;
+    // Fit BOTH digits and their gap within the central 72% of the pocket angle.
+    // Square glyph cells preserve the font's natural proportions in both GUI profiles.
+    // Fit the rectangle at its INNER edge, where adjacent pockets are closest together.
+    float halfLabelAngle=stepAngle*.36;
+    float cellSize=min(2.0*.735*tan(halfLabelAngle)
+        /(columns*2.0+1.0+rows*tan(halfLabelAngle)),.105/rows);
+    vec2 unit=vec2(cellSize);
+    vec2 label=vec2(sin(localAngle)*r,.735-cos(localAngle)*r)/unit
+        +vec2(number<10?columns*.5:columns+.5,rows*.5);
+    // Derivatives precede the radial branches; sector wrap cannot widen the filter arbitrarily.
+    vec2 labelFootprint=clamp(fwidth(label),vec2(.001),vec2(1.0))*.25;
     vec4 c=vec4(0);
     float shadow=length((p-vec2(.018,.028))/vec2(1.0,.995));
     if(shadow<1.055)c=vec4(.025,.035,.03,.7*(1.0-smoothstep(1.0,1.055,shadow)));
@@ -174,10 +212,8 @@ vec4 rouletteWheel(vec2 q,vec2 size,int a,int b,float t,bool live){
             if(r>.646&&r<.657)c.rgb=wheelBrass(r,theta);
             if(abs(localAngle)>stepAngle*.47)c.rgb=wheelBrass(r,theta);
             if(r>.67&&r<.79){
-                float unit=radius*stepAngle*.11;
-                vec2 label=vec2(sin(localAngle)*r, .734-cos(localAngle)*r)*radius/unit+vec2(number<10?1.5:3.5,2.5);
-                bool digit=number<10?wheelDigit(label,number):wheelDigit(label,number/10)||wheelDigit(label-vec2(4,0),number%10);
-                if(digit)c.rgb=vec3(.99,.96,.86);
+                float ink=wheelLabelCoverage(label,number,detailed,labelFootprint);
+                c.rgb=mix(c.rgb,vec3(1.0,.98,.90),ink);
             }
         }
         if(r<.545){
@@ -221,6 +257,7 @@ vec4 rouletteWheel(vec2 q,vec2 size,int a,int b,float t,bool live){
 vec4 effectPixel(vec2 q,vec2 size,int kind,int a,int b,float age,bool motion,bool eventLive){
     if(any(lessThan(q,vec2(0)))||any(greaterThanEqual(q,size)))return vec4(0);
     float t=eventLive&&motion?max(0.0,age):100.0;vec4 c=vec4(0);
+    // EXTENSION_DISPATCH
     if(kind==0)return rouletteWheel(q,size,a,b,t,eventLive&&motion);
     if(kind==6)return playingCard(q,size,a,b,t,eventLive&&motion);
     if(kind==7)return chipStack(q,size,a,b,t,eventLive&&motion);
@@ -282,13 +319,19 @@ vec4 effectPixel(vec2 q,vec2 size,int kind,int a,int b,float age,bool motion,boo
     }
     return c;
 }
+uint effectTrack(int offset,int bits,int index){uint value=0u;for(int i=0;i<bits;i++){int p=offset+i;uint word=p<90?effectMotionA[index][p/30]:effectMotionB[index][(p-90)/30];value|=((word>>uint(p%30))&1u)<<uint(i);}return value;}
 vec4 shaderEffects(vec2 p,float age,int flags){
     vec4 color=vec4(0);for(int i=0;i<8;i++){
         if(i>=effectCount)break;uvec3 data=effectData[i];
-        int kind=int(data.x&7u);vec2 origin=vec2(float((data.x>>3u)&511u),float((data.x>>12u)&511u));
-        vec2 size=vec2(float((data.x>>21u)&511u),float(data.y&511u));
-        int a=int((data.y>>9u)&32767u),b=int(((data.y>>24u)&63u)|(data.z<<6u));
-        vec4 paint=effectPixel(p-origin,size,kind,a,b,age,(flags&4)!=0,(flags&8)!=0);
+        bool ext=effectKind==6 || effectKind==7;
+        int kind=int(duiRead(data,ext?DUI_EXTENDED_KIND_OFFSET:DUI_EFFECT_KIND_OFFSET,ext?DUI_EXTENDED_KIND_BITS:DUI_EFFECT_KIND_BITS));
+        vec2 origin=vec2(float(duiRead(data,ext?DUI_EXTENDED_X_OFFSET:DUI_EFFECT_X_OFFSET,9)),float(duiRead(data,ext?DUI_EXTENDED_Y_OFFSET:DUI_EFFECT_Y_OFFSET,9)));
+        vec2 size=vec2(float(duiRead(data,ext?DUI_EXTENDED_WIDTH_OFFSET:DUI_EFFECT_WIDTH_OFFSET,9)),float(duiRead(data,ext?DUI_EXTENDED_HEIGHT_OFFSET:DUI_EFFECT_HEIGHT_OFFSET,9)));
+        int a=int(duiRead(data,ext?DUI_EXTENDED_PARAM0_OFFSET:DUI_EFFECT_PARAM0_OFFSET,15)),b=int(duiRead(data,ext?DUI_EXTENDED_PARAM1_OFFSET:DUI_EFFECT_PARAM1_OFFSET,15));
+        vec2 local=p-origin;float opacity=1.0;
+        if(effectKind==7){float duration=float(effectTrack(DUI_DURATION_OFFSET,DUI_DURATION_BITS,i)),delay=float(effectTrack(DUI_DELAY_OFFSET,DUI_DELAY_BITS,i));float u=(flags&4)!=0&&effectTrack(DUI_ENABLED_OFFSET,DUI_ENABLED_BITS,i)!=0u?clamp((age*20.0-delay)/max(1.0,duration),0.0,1.0):1.0;int easing=int(effectTrack(DUI_EASING_OFFSET,DUI_EASING_BITS,i));float e=u;if(easing==1)e=1.0-pow(1.0-u,3.0);else if(easing==2)e=u*u*(3.0-2.0*u);else if(easing==3){float v=u-1.0;e=1.0+2.70158*v*v*v+1.70158*v*v;}
+        vec2 shift=vec2(int(effectTrack(DUI_TX_OFFSET,DUI_TX_BITS,i))-256,int(effectTrack(DUI_TY_OFFSET,DUI_TY_BITS,i))-256)*(1.0-e);float scale=mix(float(effectTrack(DUI_SCALEFROM_OFFSET,DUI_SCALEFROM_BITS,i)),float(effectTrack(DUI_SCALETO_OFFSET,DUI_SCALETO_BITS,i)),e)/64.0;float angle=radians(mix(float(int(effectTrack(DUI_ROTATEFROM_OFFSET,DUI_ROTATEFROM_BITS,i))-256),float(int(effectTrack(DUI_ROTATETO_OFFSET,DUI_ROTATETO_BITS,i))-256),e));vec2 pivot=vec2(float(effectTrack(DUI_PIVOTX_OFFSET,DUI_PIVOTX_BITS,i)),float(effectTrack(DUI_PIVOTY_OFFSET,DUI_PIVOTY_BITS,i)))/255.0*size;vec2 delta=local-pivot-shift;local=mat2(cos(angle),-sin(angle),sin(angle),cos(angle))*delta/max(.001,scale)+pivot;opacity=clamp(mix(float(effectTrack(DUI_OPACITYFROM_OFFSET,DUI_OPACITYFROM_BITS,i)),float(effectTrack(DUI_OPACITYTO_OFFSET,DUI_OPACITYTO_BITS,i)),u)/255.0,0.0,1.0);if(scale<=.001)opacity=0.0;}
+        vec4 paint=effectPixel(local,size,kind,a,b,age,(flags&4)!=0,(flags&8)!=0);paint.a*=opacity;
         if(paint.a>0.0){float alpha=paint.a+color.a*(1.0-paint.a);color=vec4((paint.rgb*paint.a+color.rgb*color.a*(1.0-paint.a))/max(alpha,.0001),alpha);}
     }
     return color;

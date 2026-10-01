@@ -13,3 +13,11 @@ Callbacks use random, single-use capabilities scoped to the dui instance and pla
 The pack generator reads explicit verified vanilla inputs, derives shifted font images and item wrappers, and emits sorted ZIP entries with fixed timestamps. It also writes the font metrics, model registry, supported version and ZIP hash needed by the runtime adapter. The game JAR and generated textures stay outside source control.
 
 `dui-demo` depends only on these public modules. Templates, procedural gift art, QR encoding, cart/ledger rules, video fetching, pack hosting and scenario diagnostics belong to that consumer. Its Fabric test client only automates input and reads ordinary widgets/screenshots; client mods are not required by the library.
+
+## Optional application and extension layers
+
+MenuController projects consumer state through MenuView and owns presentation lifecycle, while MenuCatalogue remains a generic consumer registration catalogue. TaskScope separates view/session lifetimes from durable transactions. Layout profiles are explicit GUI units; CollectionView/Carousel/CardStrip/GridLayout compute reusable geometry without game rules. ThemeTokens/StyleResolver supply semantic styling.
+
+Scene snapshots record local rectangles, parent origins and fixed backend capabilities. Render planning resolves popup coverage without mutating application objects. ResourceHandle/CachedResourceProvider separate loading from pure projection; RGBA is composed onto an explicit background before RGB glyph rendering.
+
+Protocol 2 uses schema-generated Java/GLSL constants, strict capabilities, generic finite motion and bounded multi-carrier effects. Consumer pack contributions own extra shader functions/resources. dui-components and dui-test are optional packages built on public APIs. See [application-api](application-api.md), [compatibility](compatibility.md) and [roadmap](roadmap.md).

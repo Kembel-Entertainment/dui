@@ -1,2 +1,2 @@
 rootProject.name = 'dui'
-include 'dui-core', 'dui-paper', 'dui-pack'
+include 'dui-core', 'dui-paper', 'dui-pack', 'dui-components', 'dui-test'

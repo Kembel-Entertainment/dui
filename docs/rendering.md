@@ -1,3 +1,5 @@
+> This document includes the retained legacy wire paths. The current generated transport is protocol 2; read the versioned section below before changing fields. Application developers should use [public APIs](application-api.md), not encode these payloads themselves.
+
 # How dui renders a canvas
 
 This document explains the current **dui 0.1.0-SNAPSHOT / Minecraft 26.2** rendering protocol. Supply it to a coding agent that needs to understand or extend the renderer. For application plugins, use [the public API guide](llm-guide.md) and [quickstart](quickstart.md). The glyph addresses, shader payload and native-widget offsets below are implementation details of this version.
@@ -196,3 +198,21 @@ The shared effect transport also contains `PLAYING_CARD=6` and `CHIP_STACK=7`. T
 The preset uses the clockwise single-zero sequence `0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26`. Continuous rotor easing and a counter-rotating ball settle into the supplied target beneath the fixed marker. The final stage follows the rotor with a damped bounce. Radial wedges, inset pockets, ivory ball, walnut/ebony surfaces, brass rings and numerals are procedural GLSL; there is no sprite sheet or roulette background texture in the pack. The animation presents a server-selected result; it does not simulate randomness or real-world ball physics.
 
 `dui-hitbox` adds only a `Canvas.Hit`. It emits no paint, runtime raster or native item. It is useful for composing a small illustrated grid without inheriting button padding or appearance. Hit bounds still use full 9-pixel rows because vanilla text callbacks operate at that granularity. Add the hit after the corresponding decoration and give it an explicit unique ID; do not promise arbitrary vertical mouse coordinates or dragging.
+
+## Versioned protocol 2
+
+`protocol/renderer.json` is the source of generated Java RendererProtocol and shader protocol.glsl constants, including the schema hash. `python3 scripts/generate-protocol.py --check` verifies both outputs. Library version, Minecraft version, wire protocol and declared capabilities are separate fields; exact ZIP identity remains enforced. See [compatibility](compatibility.md).
+
+The three-bit carrier header retains legacy kinds 0..3. Kinds 4/5 are generic native motion without/with clipping; 6 carries four-bit extended effect kinds; 7 carries extended effects with generic tracks. Built-in effect codes 0..7 retain their meaning; codes 8..15 are trusted contributed effects. An unknown code/capability fails metadata validation rather than being truncated into a legacy field.
+
+The native model's centre crop remains 36 pixels inside its 48-pixel frame. Forty-eight additional RGB perimeter cells carry generic Motion fields; the original 47-cell path remains available. A colour cell carries three threshold-decoded bits. The generic tracks are finite translation, scale, rotation, opacity, pivot, duration, delay and easing. Outer guards and signed offsets are generated/validated together with the shader.
+
+Effects split into bounded native bodies: eight ordinary effects per carrier, two tracked effects per carrier. Extended effects use 24 cells; tracked effects add 48 motion cells per record. Body placement accounts for each actual vanilla body, including extra batch carriers. Default total budget remains eight; larger explicit budgets require effects-32. Do not assume one carrier means any number of objects.
+
+The GPU transforms the actual native model or procedural primitive; items are not rasterized into an exhaustive sprite pack. Preset paths retain detailed card flips/flights, staggered chips and wheel/ball behaviour. Generic tracks can move unrelated native models and procedural cards without a menu-specific shader. Clock age is world tick modulo 24,000; finish/remove transients before a wrap. Motion-off uses final poses and is verified through zero screenshot deltas.
+
+Scene planning handles dropdown coverage before backend emission. It suppresses intersecting earlier late-backend objects completely while preserving the source scene. This is not arbitrary cross-backend painter ordering or pixel-accurate popup clipping. Native ItemClip remains a fixed viewport applied after transformation; click rectangles remain application destination geometry.
+
+PackContribution supplies owned resources plus named GLSL functions with IDs/codes validated for collisions. The generator inserts trusted build-time functions into the shared shader and emits manifest capabilities. The demo's pulse function proves this path in an actual client; runtime template code injection is not supported.
+
+RenderReport counts are capacity diagnostics. Exported component serialization bytes omit native ItemStack payloads and packet framing. DialogSession.renderNanos measures the adapter's component/native/dialog construction on the server, not network transit or GPU time. Client FPS is sampled separately; the local tests are capped and do not establish a maximum safe production budget.

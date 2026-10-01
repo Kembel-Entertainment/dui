@@ -1,3 +1,5 @@
+> These recipes retain low-level compatibility examples. Prefer [the application layer](application-api.md) for new controller-based menus, scoped async jobs, semantic themes and optional component packages. Direct scheduler examples need explicit lifecycle guards; TaskScope handles those guards for presentation work. Keep business event generations and durable settlement in the consumer.
+
 # Building applications with dui
 
 These examples target **dui 0.1.0-SNAPSHOT, Java 25 and Paper/Minecraft 26.2**. Start with the [complete plugin quickstart](quickstart.md). The recipes add application behaviour through the public API; they do not require renderer changes. See [components](components.md) for exact attributes/defaults and [the LLM guide](llm-guide.md) for lifecycle rules.
@@ -168,25 +170,20 @@ Call this helper on the server thread with an already-running worker future and 
 public static void applyPreview(JavaPlugin plugin, Player player, DialogSession session,
         MenuTemplate template, ViewModel snapshot, DialogOptions options,
         ActionHandler handler, CompletableFuture<RasterImage> imageFuture) {
-    long revision = session.revision();
-    imageFuture.whenComplete((image, error) -> {
-        if (!plugin.isEnabled()) return;
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            if (!player.isOnline() || !session.isActive() || session.revision() != revision) return;
-            if (error != null || image == null) {
-                plugin.getLogger().log(Level.WARNING, "Preview image failed", error);
-                return; // Keep the placeholder and existing callbacks.
-            }
-            var images = new HashMap<>(snapshot.images());
-            images.put("preview", image);
-            var updated = new ViewModel(snapshot.data(), images, snapshot.items(), snapshot.links());
-            session.update(template, updated, options, handler);
-        });
+    session.viewTasks().latest("preview", imageFuture, (image, error) -> {
+        if (error != null || image == null) {
+            plugin.getLogger().log(Level.WARNING, "Preview image failed", error);
+            return; // Keep the placeholder and existing callbacks.
+        }
+        var images = new HashMap<>(snapshot.images());
+        images.put("preview", image);
+        var updated = new ViewModel(snapshot.data(), images, snapshot.items(), snapshot.links());
+        session.update(template, updated, options, handler);
     });
 }
 ```
 
-The captured revision prevents an old response from overwriting a newer view. It does not detect Escape or another plugin's screen: vanilla sends no general close notification to this adapter. For screens where late reopening would be disruptive, use an explicit user refresh action instead of automatic delayed updates. `onClose` sets one server-known cleanup handler rather than stacking handlers; combine your cleanup in one runnable. Close your executor/services and cancel your own scheduled work on plugin shutdown.
+The view task scope dispatches completion on the server thread and discards responses after an update or server-known close. A newer preview request replaces the old named job. The provider future remains uncancelled; cache it independently if several views share it. It does not detect Escape or another plugin's screen: vanilla sends no general close notification to this adapter. For screens where late reopening would be disruptive, use an explicit user refresh action instead of automatic delayed updates. `onClose` sets one server-known cleanup handler rather than stacking handlers; combine your cleanup in one runnable. Close your executor/services and cancel your own scheduled work on plugin shutdown.
 
 ## Native form inputs
 
@@ -297,7 +294,7 @@ An update sends a complete replacement dialog, not a browser DOM patch. Avoid se
 | No menu after pack request | Check client acceptance/status, reachable direct ZIP URL, version and matching metadata/hash. |
 | Buttons work only once | Update the active session or close it after accepted custom actions, including rejected business actions. |
 | Setting an attribute has no effect | It may be globally recognized but unused by this tag; check the component reference. |
-| Text becomes `?` or `...` | Check supported glyphs, control characters and available GUI width; labels are fitted single lines. |
+| Text becomes `?` or `...` | Check supported glyphs, control characters and available GUI width; ordinary labels are fitted single lines; use `dui-text wrap="true"` for bounded wrapping. |
 | A thumbnail reopens an escaped view | Server-known session state does not detect Escape; use explicit refresh if this is unacceptable. |
 
 For larger complete consumers, browse [dui-demo's templates](https://github.com/Kembel-Entertainment/dui-demo/tree/master/src/main/resources/ui) and [DuiDemoPlugin](https://github.com/Kembel-Entertainment/dui-demo/blob/master/src/main/java/gg/kembel/dui/demo/DuiDemoPlugin.java). Its demo balances and checkout are examples, not a production economy/payment service.

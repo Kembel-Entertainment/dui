@@ -24,7 +24,12 @@ public final class RasterImage {
     return rgb[y * width + x];
   }
 
+  /** Legacy dark-background decoding. Prefer the overload with an explicit background. */
   public static RasterImage decode(byte[] bytes) throws IOException {
+    return decode(bytes, 0x16171D);
+  }
+
+  public static RasterImage decode(byte[] bytes, int background) throws IOException {
     try (var input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
       var readers = ImageIO.getImageReaders(input);
       if (!readers.hasNext()) throw new IOException("Unsupported thumbnail image");
@@ -36,7 +41,13 @@ public final class RasterImage {
           throw new IOException("Thumbnail dimensions too large");
         var image = reader.read(0);
         double scale = Math.min(1, 256.0 / Math.max(w, h));
-        return from(image, Math.max(1, (int) (w * scale)), Math.max(1, (int) (h * scale)));
+        return new RgbaImage(w, h, image.getRGB(0, 0, w, h, null, 0, w))
+            .flatten(
+                Math.max(1, (int) (w * scale)),
+                Math.max(1, (int) (h * scale)),
+                RgbaImage.Fit.CONTAIN,
+                RgbaImage.Sampling.BILINEAR,
+                background);
       } finally {
         reader.dispose();
       }

@@ -60,6 +60,12 @@ public final class CanvasPack {
 
   public static byte[] build(VanillaAssets assets, Map<String, byte[]> additions)
       throws IOException {
+    return build(assets, additions, List.of());
+  }
+
+  public static byte[] build(
+      VanillaAssets assets, Map<String, byte[]> additions, List<PackContribution.Effect> effects)
+      throws IOException {
     var bytes = new ByteArrayOutputStream();
     try (var zip = new ZipOutputStream(bytes)) {
       put(
@@ -120,7 +126,7 @@ public final class CanvasPack {
       }
       put(zip, "assets/dui/font/items.json", ItemGlyphs.font());
       ShiftedText.write(zip, assets);
-      ShaderItemPack.write(zip, assets, additions);
+      ShaderItemPack.write(zip, assets, additions, effects);
       FocusGuard.write(zip);
       for (var entry : new TreeMap<>(additions).entrySet())
         put(zip, entry.getKey(), entry.getValue());

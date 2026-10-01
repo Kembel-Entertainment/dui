@@ -1,0 +1,70 @@
+{
+  "version": 2,
+  "carrierEffects": 8,
+  "maxEffects": 32,
+  "motionCells": 48,
+  "motionFields": {
+    "duration": 7,
+    "delay": 7,
+    "easing": 2,
+    "enabled": 1,
+    "tx": 9,
+    "ty": 9,
+    "scaleFrom": 8,
+    "scaleTo": 8,
+    "rotateFrom": 9,
+    "rotateTo": 9,
+    "opacityFrom": 8,
+    "opacityTo": 8,
+    "pivotX": 8,
+    "pivotY": 8
+  },
+  "codecFields": {
+    "BASE": {
+      "dx": 11,
+      "dy": 11,
+      "size": 7,
+      "expanded": 1
+    },
+    "HEADER": {
+      "tick": 15,
+      "width": 9,
+      "height": 9,
+      "x": 9,
+      "y": 9,
+      "kind": 3
+    },
+    "EFFECT": {
+      "kind": 3,
+      "x": 9,
+      "y": 9,
+      "width": 9,
+      "height": 9,
+      "param0": 15,
+      "param1": 15
+    },
+    "EXTENDED": {
+      "kind": 4,
+      "x": 9,
+      "y": 9,
+      "width": 9,
+      "height": 9,
+      "param0": 15,
+      "reserved": 2,
+      "param1": 15
+    },
+    "CLIP": {
+      "x": 10,
+      "y": 10,
+      "width": 9,
+      "height": 9
+    },
+    "TRANSITION": {
+      "duration": 7,
+      "kind": 2,
+      "distance": 7,
+      "enabled": 1,
+      "sign": 1
+    }
+  }
+}

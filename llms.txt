@@ -4,6 +4,10 @@
 
 ## Documentation
 
+- [Application API](docs/application-api.md): Controllers, typed actions/catalogues, lifetimes, profiles/collections, token styles, scene limits, generic motion, resource providers, pack contributions and test helpers.
+- [Compatibility](docs/compatibility.md): WIP release matrix, protocol 2 and legacy boundaries, generated codec and validation.
+- [Verification](docs/verification.md): Build/client acceptance evidence and measured limits.
+
 - [Coding-agent guide](docs/llm-guide.md): Compact API contract, template semantics, lifecycle rules, media, pack deployment, limits and a reusable prompt. Start here when supplying dui context to an LLM.
 - [First plugin](docs/quickstart.md): Complete Gradle, plugin.yml, config, XML and Java example with deployment steps.
 - [README](README.md): Module overview, local Maven build, embedding and pack generation.
@@ -11,6 +15,8 @@
 - [Application recipes](docs/recipes.md): Stateful controls with a complete controller, repeats, item/image/link keys, async updates, native forms, animated gifts, clipped carousels, deployment and troubleshooting. Include this for building consumer plugins.
 - [Architecture](docs/architecture.md): Canvas rendering, font positioning, native model carriers and callback transport.
 - [Rendering protocol](docs/rendering.md): Negative spacing with Unicode addresses and pen arithmetic, vertical band fonts, invisible hit spans, runtime rasters, native item/shader payload and debugging invariants. Include this for renderer or pack changes.
+- [Composition and UI jobs](docs/composition.md): Implemented public components, props/outlets, relative layout, pagination, budgets and task scopes.
+- [Abstraction roadmap](docs/roadmap.md): Audit evidence, delivery order, ownership, acceptance criteria and completed migration and explicit renderer boundaries.
 - [dui-demo](https://github.com/Kembel-Entertainment/dui-demo): Companion consumer with examples and real-client integration tests.
 
 Own code is MIT licensed. API and pack formats are provisional. No remote Maven release has been published. Check the source for the exact checked-out version; do not invent CSS, browser JavaScript or undocumented methods.

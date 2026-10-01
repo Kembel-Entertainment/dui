@@ -23,6 +23,14 @@ public record ViewModel(
         throw new IllegalArgumentException("Only HTTP(S) UI links are supported");
   }
 
+  /** Returns defensive item snapshots; mutating a result never changes this view. */
+  @Override
+  public Map<String, ItemStack> items() {
+    var copy = new HashMap<String, ItemStack>();
+    items.forEach((key, item) -> copy.put(key, item.clone()));
+    return Collections.unmodifiableMap(copy);
+  }
+
   public static ViewModel data(Map<String, Object> data) {
     return new ViewModel(data, Map.of(), Map.of(), Map.of());
   }

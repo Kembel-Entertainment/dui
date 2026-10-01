@@ -1,6 +1,7 @@
 package gg.kembel.dui.pack;
 
 import com.google.gson.*;
+import gg.kembel.dui.core.RendererProtocol;
 import java.io.*;
 import java.nio.file.*;
 import java.security.*;
@@ -13,6 +14,12 @@ public final class PackGenerator {
 
   public static void generate(Path clientJar, Path additionsDirectory, Path output)
       throws Exception {
+    generate(clientJar, additionsDirectory, output, List.of());
+  }
+
+  public static void generate(
+      Path clientJar, Path additionsDirectory, Path output, List<PackContribution> contributions)
+      throws Exception {
     var additions = new TreeMap<String, byte[]>();
     if (additionsDirectory != null && Files.isDirectory(additionsDirectory))
       try (var paths = Files.walk(additionsDirectory)) {
@@ -24,9 +31,13 @@ public final class PackGenerator {
           additions.put(name, Files.readAllBytes(p));
         }
       }
+    var effects = PackContribution.merge(contributions, additions);
+    var capabilities =
+        new TreeSet<>(Set.of("native", "effects-8", "clips", "motion-tracks", "effects-32"));
+    for (var effect : effects) capabilities.add("effect:" + effect.id() + "@" + effect.code());
     Files.createDirectories(output);
     try (var assets = new VanillaAssets(clientJar)) {
-      byte[] pack = CanvasPack.build(assets, additions);
+      byte[] pack = CanvasPack.build(assets, additions, effects);
       var sorted = new TreeMap<String, byte[]>();
       try (var zip = new ZipInputStream(new ByteArrayInputStream(pack))) {
         for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry())
@@ -60,6 +71,12 @@ public final class PackGenerator {
                   .create()
                   .toJson(
                       Map.of(
+                          "protocolVersion",
+                          RendererProtocol.VERSION,
+                          "capabilities",
+                          capabilities,
+                          "codecHash",
+                          RendererProtocol.SCHEMA_SHA256,
                           "minecraftVersion",
                           "26.2",
                           "libraryVersion",

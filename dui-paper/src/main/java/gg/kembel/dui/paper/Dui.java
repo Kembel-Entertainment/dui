@@ -52,7 +52,39 @@ public final class Dui implements Listener, AutoCloseable {
   }
 
   public MenuTemplate compile(String source) throws Exception {
-    return MenuTemplate.parse(source, metadata.font());
+    return compile("<template>", source, ComponentRegistry.EMPTY);
+  }
+
+  public MenuTemplate compile(String name, String source, ComponentRegistry registry)
+      throws Exception {
+    return MenuTemplate.parse(source, metadata.font(), registry, name);
+  }
+
+  UiScheduler scheduler() {
+    return new UiScheduler() {
+      public Cancellation later(long ticks, Runnable task) {
+        mainThread();
+        var scheduled = plugin.getServer().getScheduler().runTaskLater(plugin, task, ticks);
+        return scheduled::cancel;
+      }
+
+      public void execute(Runnable task) {
+        // May be called by a provider thread after shutdown; dropping UI work is intentional.
+        if (!plugin.isEnabled()) return;
+        try {
+          plugin
+              .getServer()
+              .getScheduler()
+              .runTask(
+                  plugin,
+                  () -> {
+                    if (!stopped) task.run();
+                  });
+        } catch (org.bukkit.plugin.IllegalPluginAccessException ignored) {
+          // Disable can race with enqueueing a completion. No provider is cancelled.
+        }
+      }
+    };
   }
 
   public boolean packLoaded(Player player) {
@@ -120,13 +152,16 @@ public final class Dui implements Listener, AutoCloseable {
   }
 
   void display(DialogSession s) {
+    metadata.validate(s.canvas);
     callbacks.invalidate(s.player.getUniqueId());
     if (!ready.contains(s.player.getUniqueId())) {
       offerPack(s.player);
       return;
     }
+    long renderStarted = System.nanoTime();
     var c = s.canvas;
     var model = s.model;
+    var itemSnapshots = model.items();
     s.component =
         renderer.renderActions(
             c,
@@ -136,13 +171,15 @@ public final class Dui implements Listener, AutoCloseable {
                     : ClickEvent.custom(action(s, hit, false), null),
             head -> NativeHeads.render(head, s.player),
             hit ->
-                model.items().containsKey(hit.id())
-                    ? model.items().get(hit.id()).asHoverEvent()
+                itemSnapshots.containsKey(hit.id())
+                    ? itemSnapshots.get(hit.id()).asHoverEvent()
                     : HoverEvent.showText(
                         Component.text(hit.tooltip().isBlank() ? hit.id() : hit.tooltip())));
     var body = new ArrayList<DialogBody>();
     body.add(DialogBody.plainMessage(s.component, c.width + 12));
-    body.addAll(ShaderItems.bodies(c, model.items(), metadata.models()));
+    body.addAll(
+        ShaderItems.bodies(
+            c, itemSnapshots, metadata.models(), metadata.supports("motion-tracks")));
     var o = s.options;
     var buttons = o.buttons().stream().map(b -> button(s, b, false)).toList();
     var exit = o.exit() == null ? null : button(s, o.exit(), true);
@@ -164,12 +201,15 @@ public final class Dui implements Listener, AutoCloseable {
                 empty.type(
                     DialogType.multiAction(buttons).columns(o.columns()).exitAction(exit).build());
             }));
+    s.renderNanos = System.nanoTime() - renderStarted;
+    s.bodyCount = body.size();
   }
 
   void dismiss(DialogSession s, boolean closeScreen) {
     if (!s.active) return;
     s.active = false;
     s.revision++;
+    s.disposeTasks();
     callbacks.invalidate(s.player.getUniqueId());
     sessions.remove(s.player.getUniqueId(), s);
     if (closeScreen && s.player.isOnline()) s.player.closeDialog();

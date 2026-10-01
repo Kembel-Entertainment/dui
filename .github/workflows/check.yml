@@ -12,4 +12,6 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: gradle
-      - run: ./gradlew build --console=plain
+      - run: python3 scripts/generate-protocol.py --check
+      - run: ./gradlew build :dui-pack:componentDocs --console=plain
+      - run: git diff --exit-code -- docs/generated

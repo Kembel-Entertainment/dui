@@ -4,13 +4,15 @@
 
 Built by [Kembel Entertainment](https://kembel.gg). Java packages and Maven group: `gg.kembel.dui`.
 
-Start with [your first plugin](docs/quickstart.md), a complete buildable example, then [application recipes](docs/recipes.md) for stateful controls, media and forms. For coding agents, supply [the LLM guide](docs/llm-guide.md); [llms.txt](llms.txt) indexes the documentation.
+Start with [your first plugin](docs/quickstart.md), a complete buildable example, then [application APIs](docs/application-api.md) and [application recipes](docs/recipes.md) for stateful controls, media and forms. For coding agents, supply [the LLM guide](docs/llm-guide.md); [llms.txt](llms.txt) indexes the documentation.
 
 | Module | Purpose |
 | --- | --- |
 | `dui-core` | Strict templates, data binding, layout, hit regions, themes, runtime images and effect parameters |
 | `dui-paper` | Embedded Paper API, player sessions, callbacks, Adventure components, heads and native item carriers |
-| `dui-pack` | Build-time fonts, native-model wrappers, reusable assets and shared GUI shaders |
+| `dui-pack` | Build-time fonts, native-model wrappers, owned contributions and shared GUI shaders |
+| `dui-components` | Optional namespaced visual components, reusable chrome and resource-driven native reels |
+| `dui-test` | Portable fake scheduler, render contracts and consumer action-sequence harness |
 
 The example application and real-client tests live in the separate [dui-demo](https://github.com/Kembel-Entertainment/dui-demo) repository. dui has no commands, shop state, balances, reward logic, network feed service or built-in pack HTTP server.
 
@@ -89,9 +91,13 @@ Runtime images use RGB-tinted rectangle glyphs. They do not add thumbnails to th
 - HTML-like XML component DSL, not a browser: no CSS engine, DOM or JavaScript.
 - Canvas widths 120–480 GUI pixels; heights up to 360 in 9-pixel rows. Click regions follow that row grid.
 - Generic native-model transitions (pop, bounce, lift, signed horizontal slide) and fixed clipping viewports; the carousel recipe needs no menu-specific shader. Vanilla callbacks expose clicks, not drag/swipe gestures.
-- At most eight shared shader-effect components and 16,384 sampled image pixels per canvas.
+- Eight effects by default; protocol 2 supports an explicit budget up to 32 with bounded batches. Runtime images retain the 16,384 sampled-pixel budget.
 - GUI scale and window dimensions are not available to a vanilla server. Applications offer Compact/Spacious choices.
 - Native form inputs retain Minecraft's native dialog layout. Resource packs that replace the same core shaders require integration work.
 - Pack/API versions are matched explicitly; multi-version support and shared-pack coordination across independently versioned plugins are future work.
 
 See [quickstart](docs/quickstart.md), [LLM guide](docs/llm-guide.md), [components](docs/components.md), [architecture](docs/architecture.md), [rendering protocol](docs/rendering.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Own code is licensed under [MIT](LICENSE).
+
+## Extension APIs and roadmap
+
+Read [Component composition and UI work](docs/composition.md) for implemented component registries, template fragments, session tasks, relative layout, pagination and resource planning. The [completed abstraction roadmap](docs/roadmap.md) records the migration and backend boundaries. [Application APIs](docs/application-api.md) cover controllers, collections, tokens, resources, tracks, extensions and testing; [compatibility](docs/compatibility.md) defines the WIP release contract.

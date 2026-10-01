@@ -23,15 +23,18 @@ flat in int effectKind;
 flat in int effectFlags;
 flat in int effectCount;
 flat in uvec3 effectData[8];
+flat in uvec3 effectMotionA[2];
+flat in uvec2 effectMotionB[2];
 
 out vec4 fragColor;
 
 float random(float n) { return fract(sin(n*127.1+311.7)*43758.5453); }
+// PROTOCOL
 // EFFECT_FUNCTIONS
 
 void main() {
-    if(effectKind==3 && (any(lessThan(clipPoint,itemClip.xy)) || any(greaterThanEqual(clipPoint,itemClip.zw))))discard;
-    if(effectKind==1){vec4 panel=shaderEffects(burstPoint,burstAge,effectFlags);if(panel.a==0.0)discard;fragColor=panel*ColorModulator;return;}
+    if((effectKind==3 || effectKind==5) && (any(lessThan(clipPoint,itemClip.xy)) || any(greaterThanEqual(clipPoint,itemClip.zw))))discard;
+    if(effectKind==1 || effectKind==6 || effectKind==7){vec4 panel=shaderEffects(burstPoint,burstAge,effectFlags);if(panel.a==0.0)discard;fragColor=panel*ColorModulator;return;}
     vec4 color = texture(Sampler0, texCoord0) * vertexColor;
     if(burstAge>=0.0) {
         // Repaint the native mascot inside an expanded, otherwise transparent canvas quad.

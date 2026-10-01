@@ -2,10 +2,25 @@ package gg.kembel.dui.core;
 
 /** Reusable shader component resolved by the layout engine. No menu or game-state dependencies. */
 public record ShaderEffect(
-    String id, Kind kind, int x, int y, int width, int height, int parameter0, int parameter1) {
+    String id, Type kind, int x, int y, int width, int height, int parameter0, int parameter1) {
   public static final int LIMIT = 8, CELLS = 23;
 
-  public enum Kind {
+  public sealed interface Type permits Kind, Extension {
+    int code();
+  }
+
+  public record Extension(String id, int code, int lifetime) implements Type {
+    public Extension {
+      if (id == null
+          || !id.matches("[a-z][a-z0-9_-]*:[a-z][a-z0-9_/-]*")
+          || code < 8
+          || code > 15
+          || lifetime < 0
+          || lifetime > 511) throw new IllegalArgumentException("Effect extension declaration");
+    }
+  }
+
+  public enum Kind implements Type {
     WHEEL(0),
     REEL(1),
     LEVER(2),
@@ -16,13 +31,18 @@ public record ShaderEffect(
     CHIP_STACK(7);
     public final int code;
 
+    public int code() {
+      return code;
+    }
+
     Kind(int code) {
       this.code = code;
     }
   }
 
   public int lifetimeTicks() {
-    return switch (kind) {
+    if (kind instanceof Extension e) return e.lifetime();
+    return switch ((Kind) kind) {
       case WHEEL -> (parameter1 & 512) == 0 ? 0 : parameter1 & 511;
       case REEL -> parameter1 & 127;
       case LEVER -> parameter0;

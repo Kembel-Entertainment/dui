@@ -45,7 +45,9 @@ public final class GlyphFont {
                     widths.containsKey(cp) && !Character.isISOControl(cp) ? cp : '?'));
     String result = supported.toString();
     if (width(result) <= available) return result;
-    int budget = Math.max(0, available - width("..."));
+    String ellipsis = "...";
+    while (!ellipsis.isEmpty() && width(ellipsis) > available) ellipsis = ellipsis.substring(1);
+    int budget = Math.max(0, available - width(ellipsis));
     StringBuilder clipped = new StringBuilder();
     int used = 0;
     for (int cp : result.codePoints().toArray()) {
@@ -54,7 +56,37 @@ public final class GlyphFont {
       clipped.appendCodePoint(cp);
       used += next;
     }
-    return clipped + "...";
+    return clipped + ellipsis;
+  }
+
+  /** Word wrapping with code-point-safe long-word splits and truncation on the last line. */
+  public List<String> wrap(String text, int available, int maxLines) {
+    if (available < 1 || maxLines < 1)
+      throw new IllegalArgumentException("Text wrap needs positive width and lines");
+    String remaining = text.replaceAll("\\s+", " ").strip();
+    var lines = new ArrayList<String>();
+    while (!remaining.isEmpty() && lines.size() < maxLines) {
+      if (lines.size() == maxLines - 1 || width(remaining) <= available) {
+        lines.add(fit(remaining, available));
+        break;
+      }
+      int end = 0, used = 0;
+      while (end < remaining.length()) {
+        int cp = remaining.codePointAt(end), next = widths.getOrDefault(cp, widths.get((int) '?'));
+        if (used + next > available) break;
+        used += next;
+        end += Character.charCount(cp);
+      }
+      if (end == 0) {
+        lines.add(fit(remaining, available));
+        break;
+      }
+      int space = remaining.lastIndexOf(' ', end);
+      if (space > 0) end = space;
+      lines.add(remaining.substring(0, end));
+      remaining = remaining.substring(end).stripLeading();
+    }
+    return List.copyOf(lines);
   }
 
   public static String shift(int pixels) {

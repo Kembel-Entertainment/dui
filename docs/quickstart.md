@@ -44,6 +44,7 @@ java {
 }
 tasks.withType(JavaCompile).configureEach { options.release = 25 }
 jar {
+    dependsOn configurations.runtimeClasspath
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', '**/module-info.class'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -168,3 +169,7 @@ Copy `build/libs/example-ui-0.1.0.jar` into the server's `plugins/` directory. C
 Join with an unmodified 26.2 client and run `/exampleui`. Accept the pack. The library waits until it loads before showing the menu. Click **Add one** repeatedly and then **Close**. Refusing or failing to load the pack prevents the UI from displaying.
 
 Layouts use GUI pixels, not physical screen pixels. See [components](components.md) for layout and binding rules, [the LLM guide](llm-guide.md) for the API contract and known limits, and [dui-demo](https://github.com/Kembel-Entertainment/dui-demo) for native items, forms, images, animation and complete client tests.
+
+## Growing beyond the first screen
+
+Keep this low-level example for a small menu. For a reusable application use [MenuController, catalogue and resources](application-api.md), install optional components explicitly, and test pure projections with dui-test. The companion Field Journal and Protocol Lab demonstrate the public extension path without game-specific core edits.

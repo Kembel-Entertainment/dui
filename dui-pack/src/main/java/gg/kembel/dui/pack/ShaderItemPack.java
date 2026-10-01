@@ -15,7 +15,8 @@ public final class ShaderItemPack {
   public static final int BURST_TICKS = 96;
   private static final Gson JSON = new Gson();
 
-  private static byte[] shader(String ext) throws IOException {
+  private static byte[] shader(String ext, List<PackContribution.Effect> effects)
+      throws IOException {
     try (var in =
         ShaderItemPack.class.getResourceAsStream("/ui/shader/position_tex_color." + ext)) {
       String source = new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8);
@@ -26,14 +27,43 @@ public final class ShaderItemPack {
                   "// EFFECT_FUNCTIONS",
                   new String(Objects.requireNonNull(slots).readAllBytes(), StandardCharsets.UTF_8));
         }
+      try (var protocol = ShaderItemPack.class.getResourceAsStream("/ui/shader/protocol.glsl")) {
+        source =
+            source.replace(
+                "// PROTOCOL",
+                new String(
+                    Objects.requireNonNull(protocol).readAllBytes(), StandardCharsets.UTF_8));
+      }
+      var declarations = new StringBuilder();
+      var dispatch = new StringBuilder();
+      for (var effect : effects) {
+        declarations.append(effect.glsl()).append("\n");
+        dispatch
+            .append("if(kind==")
+            .append(effect.code())
+            .append(")return ")
+            .append(effect.function())
+            .append("(q,size,a,b,t,eventLive&&motion);\n");
+      }
+      source = source.replace("// EXTENSION_DISPATCH", dispatch.toString());
+      source = source.replace("vec4 effectPixel(", declarations + "\nvec4 effectPixel(");
       return source.getBytes(StandardCharsets.UTF_8);
     }
   }
 
   public static void write(ZipOutputStream zip, VanillaAssets assets, Map<String, byte[]> additions)
       throws IOException {
+    write(zip, assets, additions, List.of());
+  }
+
+  public static void write(
+      ZipOutputStream zip,
+      VanillaAssets assets,
+      Map<String, byte[]> additions,
+      List<PackContribution.Effect> effects)
+      throws IOException {
     for (String ext : List.of("vsh", "fsh"))
-      put(zip, "assets/minecraft/shaders/core/position_tex_color." + ext, shader(ext));
+      put(zip, "assets/minecraft/shaders/core/position_tex_color." + ext, shader(ext, effects));
     var white = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
     white.setRGB(0, 0, 0xFFFFFFFF);
     var clear = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
@@ -63,6 +93,13 @@ public final class ShaderItemPack {
         JsonParser.parseString(
                 "{\"gui_light\":\"front\",\"textures\":{\"white\":\"dui:item/white\",\"clear\":\"dui:item/clear\",\"particle\":\"dui:item/white\"}}")
             .getAsJsonObject();
+    var legacyElements = elements.deepCopy();
+    // An inner three-pixel guard ring holds generic property tracks, outside the 36px native crop.
+    for (int i = 0; i < 48; i++) {
+      int side = i / 12, col = i % 12, t = -10 + col * 3;
+      int x = side == 2 ? -13 : side == 3 ? 26 : t, y = side == 0 ? -13 : side == 1 ? 26 : t;
+      elements.add(face(x, y, x + 3, y + 3, "white", 4 + 47 + i));
+    }
     marker.add("elements", elements);
     put(zip, "assets/dui/models/item/transport.json", JSON.toJson(marker));
     // Vanilla orders GUI draws by their original bounds, before our shader moves them.
@@ -80,8 +117,8 @@ public final class ShaderItemPack {
     // Procedural components use the otherwise empty 42x42 interior for parameter cells.
     // Native item wrappers keep their original crop and small transport unchanged.
     var effectMarker = marker.deepCopy();
-    var effectElements = elements.deepCopy();
-    for (int i = 0; i < ShaderEffect.LIMIT * ShaderEffect.CELLS; i++)
+    var effectElements = legacyElements.deepCopy();
+    for (int i = 0; i < ShaderEffect.LIMIT * 24; i++)
       effectElements.add(
           face(
               -13 + (i % 14) * 3,
@@ -137,9 +174,7 @@ public final class ShaderItemPack {
       for (int i = 0;
           i
               < ItemTransport.NATIVE_CELLS
-                  + (entry.getKey().equals("dui:effect/panel")
-                      ? ShaderEffect.LIMIT * ShaderEffect.CELLS
-                      : 0);
+                  + (entry.getKey().equals("dui:effect/panel") ? ShaderEffect.LIMIT * 24 : 0);
           i++)
         tints.add(
             JsonParser.parseString(

@@ -14,153 +14,26 @@ import org.xml.sax.InputSource;
  */
 public final class MenuTemplate {
   public record Node(String type, Map<String, String> props, List<Node> children) {
-    String s(String key, String fallback) {
+    public Node {
+      props = Map.copyOf(props);
+      children = List.copyOf(children);
+    }
+
+    public String s(String key, String fallback) {
       return props.getOrDefault(key, fallback);
     }
 
-    int n(String key, int fallback) {
+    public int n(String key, int fallback) {
       return Integer.parseInt(s(key, "" + fallback));
     }
 
-    boolean b(String key) {
+    public boolean b(String key) {
       return s(key, "false").equals("true");
     }
   }
 
-  private static final Set<String> TAGS =
-      Set.of(
-          "menu",
-          "row",
-          "column",
-          "grid",
-          "panel",
-          "repeat",
-          "if",
-          "heading",
-          "text",
-          "divider",
-          "spacer",
-          "nav",
-          "toggle",
-          "checkbox",
-          "dropdown",
-          "option",
-          "button",
-          "choice",
-          "tab",
-          "badge",
-          "progress",
-          "stat",
-          "card",
-          "empty",
-          "entry",
-          "tree",
-          "node",
-          "head",
-          "slot",
-          "style",
-          "layer",
-          "surface",
-          "hitbox",
-          "wheel",
-          "rect",
-          "playing-card",
-          "chip-stack",
-          "reel",
-          "lever",
-          "particles",
-          "lights",
-          "image",
-          "item");
-  private static final Set<String> ATTRS =
-      Set.of(
-          "width",
-          "height",
-          "gap",
-          "padding",
-          "columns",
-          "title",
-          "label",
-          "detail",
-          "value",
-          "max",
-          "checked",
-          "active",
-          "locked",
-          "icon",
-          "id",
-          "action",
-          "tooltip",
-          "tone",
-          "items",
-          "as",
-          "test",
-          "align",
-          "x",
-          "y",
-          "parent",
-          "rank",
-          "limit",
-          "shape",
-          "status",
-          "player",
-          "hat",
-          "count",
-          "durability",
-          "enchanted",
-          "theme",
-          "payload",
-          "open",
-          "select",
-          "dismiss",
-          "class",
-          "fill",
-          "border",
-          "color",
-          "disabled-fill",
-          "disabled-border",
-          "disabled-color",
-          "highlight",
-          "bevel",
-          "animation-start",
-          "motion",
-          "previous",
-          "duration",
-          "turns",
-          "symbol-size",
-          "symbols",
-          "effect",
-          "origin-x",
-          "origin-y",
-          "delay",
-          "radius",
-          "sequence",
-          "compact",
-          "compact-width",
-          "compact-height",
-          "focus-outline",
-          "source",
-          "pixel-size",
-          "size",
-          "burst-start",
-          "transition",
-          "transition-start",
-          "transition-duration",
-          "transition-distance",
-          "clip-x",
-          "clip-y",
-          "clip-width",
-          "clip-height",
-          "image-layer",
-          "face-down",
-          "animation",
-          "lift",
-          "card-height",
-          "palette",
-          "from",
-          "to",
-          "variant");
-  private static final Pattern BIND = Pattern.compile("\\{\\{([a-zA-Z_][a-zA-Z_0-9.]*)}}");
+  private static final Set<String> TAGS = ComponentSchemas.all().keySet();
+  private static final Pattern BIND = Pattern.compile("\\{\\{([a-zA-Z_][a-zA-Z_0-9.-]*)}}");
   private final Element root;
   private final Map<String, Map<String, String>> styles = new HashMap<>();
   private static final Set<String> STYLE_PROPS =
@@ -168,6 +41,12 @@ public final class MenuTemplate {
           "fill",
           "border",
           "color",
+          "selected-fill",
+          "selected-border",
+          "selected-color",
+          "active-fill",
+          "active-border",
+          "active-color",
           "disabled-fill",
           "disabled-border",
           "disabled-color",
@@ -175,33 +54,101 @@ public final class MenuTemplate {
           "bevel",
           "padding");
   private final GlyphFont metrics;
+  private final Map<String, ComponentRegistry.Definition> definitions;
+  private final Map<String, Element> fragments = new HashMap<>();
+  private final String sourceName;
+  private static final Set<String> PLACEMENT =
+      Set.of("id", "x", "y", "width", "height", "anchor-x", "anchor-y", "class");
 
-  private MenuTemplate(Element root, GlyphFont metrics) {
+  private MenuTemplate(
+      Element root, GlyphFont metrics, ComponentRegistry registry, String sourceName)
+      throws Exception {
     this.metrics = metrics;
     this.root = root;
-    for (var child = root.getFirstChild(); child != null; child = child.getNextSibling())
-      if (child instanceof Element e && e.getTagName().equals("dui-style")) {
-        String id = e.getAttribute("id");
-        if (id.isBlank() || styles.containsKey(id))
-          throw new IllegalArgumentException("Duplicate / empty style: " + id);
-        Map<String, String> props = new HashMap<>();
-        for (int i = 0; i < e.getAttributes().getLength(); i++) {
-          var a = e.getAttributes().item(i);
-          if (!a.getNodeName().equals("id")) {
-            if (!STYLE_PROPS.contains(a.getNodeName()))
-              throw new IllegalArgumentException("Invalid style property: " + a.getNodeName());
-            props.put(a.getNodeName(), a.getNodeValue());
-          }
-        }
-        styles.put(id, Map.copyOf(props));
+    this.sourceName = sourceName;
+    this.definitions = new HashMap<>(registry.definitions());
+    for (var child = root.getFirstChild(); child != null; child = child.getNextSibling()) {
+      if (!(child instanceof Element e) || !e.getTagName().equals("dui-component")) continue;
+      String name = e.getAttribute("name");
+      Set<String> properties = new HashSet<>();
+      if (!e.getAttribute("props").isBlank())
+        for (String prop : e.getAttribute("props").split(",", -1))
+          if (!properties.add(prop.strip()))
+            throw new IllegalArgumentException("Duplicate property: " + prop);
+      var definition =
+          ComponentRegistry.builder()
+              .template(name, properties, "<dui-fragment/>")
+              .build()
+              .definitions()
+              .get(name);
+      if (TAGS.contains(name) || definitions.putIfAbsent(name, definition) != null)
+        throw new IllegalArgumentException("Duplicate component: " + name);
+      fragments.put(name, e);
+    }
+    for (var entry : registry.definitions().entrySet()) {
+      if (TAGS.contains(entry.getKey()))
+        throw new IllegalArgumentException("Reserved component: " + entry.getKey());
+      if (entry.getValue().template() != null) {
+        var fragment = document(entry.getValue().template());
+        if (!fragment.getTagName().equals("dui-fragment"))
+          throw new IllegalArgumentException(
+              "Component source needs a dui-fragment root: " + entry.getKey());
+        fragments.put(entry.getKey(), fragment);
       }
+    }
+    collectStyles(root, "");
+    for (var entry : fragments.entrySet()) {
+      collectStyles(entry.getValue(), "__" + entry.getKey() + "_");
+      long roots =
+          elements(entry.getValue()).stream()
+              .filter(e -> !e.getTagName().equals("dui-style"))
+              .count();
+      if (roots != 1)
+        throw new IllegalArgumentException("Component needs one visual root: " + entry.getKey());
+      for (var child : elements(entry.getValue())) validate(child, 1);
+    }
+    validate(root, 0);
   }
 
-  public static MenuTemplate parse(String xml) throws Exception {
-    return parse(xml, new GlyphFont());
+  private static List<Element> elements(Element parent) {
+    var result = new ArrayList<Element>();
+    for (var child = parent.getFirstChild(); child != null; child = child.getNextSibling())
+      if (child instanceof Element element) result.add(element);
+    return result;
   }
 
-  public static MenuTemplate parse(String xml, GlyphFont metrics) throws Exception {
+  private void collectStyles(Element parent, String prefix) {
+    var renames = new HashMap<String, String>();
+    for (var e : elements(parent)) {
+      if (!e.getTagName().equals("dui-style")) continue;
+      String id = e.getAttribute("id"), name = prefix + id;
+      if (id.isBlank() || styles.containsKey(name) || renames.putIfAbsent(id, name) != null)
+        throw new IllegalArgumentException("Duplicate / empty style: " + id);
+      Map<String, String> props = new HashMap<>();
+      for (int i = 0; i < e.getAttributes().getLength(); i++) {
+        var a = e.getAttributes().item(i);
+        if (!a.getNodeName().equals("id")) {
+          if (!STYLE_PROPS.contains(a.getNodeName()))
+            throw new IllegalArgumentException("Invalid style property: " + a.getNodeName());
+          props.put(a.getNodeName(), a.getNodeValue());
+        }
+      }
+      styles.put(name, Map.copyOf(props));
+    }
+    if (!prefix.isEmpty()) renameClasses(parent, renames);
+  }
+
+  private static void renameClasses(Element parent, Map<String, String> renames) {
+    if (parent.hasAttribute("class"))
+      parent.setAttribute(
+          "class",
+          Arrays.stream(parent.getAttribute("class").strip().split("\\s+"))
+              .map(name -> renames.getOrDefault(name, name))
+              .collect(java.util.stream.Collectors.joining(" ")));
+    elements(parent).forEach(e -> renameClasses(e, renames));
+  }
+
+  private static Element document(String xml) throws Exception {
     if (xml.length() > 128_000) throw new IllegalArgumentException("Template too large");
     var factory = DocumentBuilderFactory.newInstance();
     factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -209,30 +156,66 @@ public final class MenuTemplate {
     factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
     factory.setXIncludeAware(false);
     factory.setExpandEntityReferences(false);
-    Element root =
-        factory
-            .newDocumentBuilder()
-            .parse(new InputSource(new StringReader(xml)))
-            .getDocumentElement();
-    if (!root.getTagName().equals("dui-menu"))
-      throw new IllegalArgumentException("Expected dui-menu");
-    validate(root, 0);
-    return new MenuTemplate(root, Objects.requireNonNull(metrics));
+    return factory
+        .newDocumentBuilder()
+        .parse(new InputSource(new StringReader(xml)))
+        .getDocumentElement();
   }
 
-  private static void validate(Element e, int depth) {
-    if (depth > 20
-        || !e.getTagName().startsWith("dui-")
-        || !TAGS.contains(e.getTagName().substring(4)))
-      throw new IllegalArgumentException("Unknown / nested component: " + e.getTagName());
-    if (e.getTagName().equals("dui-style") && (depth != 1 || e.hasChildNodes()))
-      throw new IllegalArgumentException("Styles must be empty direct children of dui-menu");
-    for (int i = 0; i < e.getAttributes().getLength(); i++)
-      if (!ATTRS.contains(e.getAttributes().item(i).getNodeName()))
-        throw new IllegalArgumentException(
-            "Unknown attribute: " + e.getAttributes().item(i).getNodeName());
-    for (var child = e.getFirstChild(); child != null; child = child.getNextSibling())
-      if (child instanceof Element el) validate(el, depth + 1);
+  public static MenuTemplate parse(String xml) throws Exception {
+    return parse(xml, new GlyphFont());
+  }
+
+  public static MenuTemplate parse(String xml, GlyphFont metrics) throws Exception {
+    return parse(xml, metrics, ComponentRegistry.EMPTY);
+  }
+
+  public static MenuTemplate parse(String xml, GlyphFont metrics, ComponentRegistry registry)
+      throws Exception {
+    return parse(xml, metrics, registry, "<template>");
+  }
+
+  public static MenuTemplate parse(
+      String xml, GlyphFont metrics, ComponentRegistry registry, String sourceName)
+      throws Exception {
+    try {
+      var root = document(xml);
+      if (!root.getTagName().equals("dui-menu"))
+        throw new IllegalArgumentException("Expected dui-menu");
+      return new MenuTemplate(
+          root,
+          Objects.requireNonNull(metrics),
+          Objects.requireNonNull(registry),
+          Objects.requireNonNull(sourceName));
+    } catch (Exception e) {
+      throw new IllegalArgumentException(sourceName + ": " + e.getMessage(), e);
+    }
+  }
+
+  private void validate(Element e, int depth) {
+    String tag = e.getTagName(), type = tag.startsWith("dui-") ? tag.substring(4) : "";
+    var definition = definitions.get(type);
+    if (depth > 20 || !tag.startsWith("dui-") || !TAGS.contains(type) && definition == null)
+      throw new IllegalArgumentException("Unknown / nested component: " + tag);
+    if (type.equals("component")) {
+      if (depth != 1)
+        throw new IllegalArgumentException("Component definitions must be direct menu children");
+      for (int i = 0; i < e.getAttributes().getLength(); i++)
+        if (!Set.of("name", "props").contains(e.getAttributes().item(i).getNodeName()))
+          throw new IllegalArgumentException("Invalid component definition attribute");
+      return;
+    }
+    if (type.equals("style") && (depth != 1 || e.hasChildNodes()))
+      throw new IllegalArgumentException(
+          "Styles must be empty direct children of menu or component");
+    for (int i = 0; i < e.getAttributes().getLength(); i++) {
+      String key = e.getAttributes().item(i).getNodeName();
+      if (definition == null
+          ? !ComponentSchemas.supports(tag.substring(4), key)
+          : !PLACEMENT.contains(key) && !definition.attributes().contains(key))
+        throw new IllegalArgumentException("Unknown attribute " + key + " on " + tag);
+    }
+    for (var child : elements(e)) validate(child, depth + 1);
   }
 
   private static Object lookup(Map<String, Object> data, String path) {
@@ -254,10 +237,72 @@ public final class MenuTemplate {
     return out.toString();
   }
 
-  private List<Node> expand(Element e, Map<String, Object> data, int[] budget) {
+  private List<Node> expand(
+      Element e,
+      Map<String, Object> data,
+      int[] budget,
+      Map<String, List<Node>> outlets,
+      int depth) {
+    if (depth > 32) throw new IllegalArgumentException("Component expansion depth exceeded");
     if (--budget[0] < 0) throw new IllegalArgumentException("Expanded node limit");
     String type = e.getTagName().substring(4);
-    if (type.equals("style")) return List.of();
+    if (type.equals("style") || type.equals("component")) return List.of();
+    if (type.equals("outlet")) {
+      String name = e.getAttribute("name");
+      if (!outlets.containsKey(name))
+        throw new IllegalArgumentException("Missing content outlet: " + name);
+      var projected = outlets.get(name);
+      budget[0] -= projected.stream().mapToInt(MenuTemplate::nodeCount).sum();
+      if (budget[0] < 0)
+        throw new IllegalArgumentException("Expanded node limit in outlet: " + name);
+      return projected;
+    }
+    if (type.equals("content"))
+      throw new IllegalArgumentException("Content must belong to a template component");
+    if (fragments.containsKey(type)) {
+      var properties = new HashMap<String, Object>();
+      for (String key : definitions.get(type).attributes()) {
+        if (!e.hasAttribute(key))
+          throw new IllegalArgumentException("Missing property " + key + " on " + type);
+        String raw = e.getAttribute(key);
+        var match = BIND.matcher(raw);
+        properties.put(key, match.matches() ? lookup(data, match.group(1)) : bind(raw, data));
+      }
+      // ID is available for explicitly namespaced internal controls, without changing their
+      // payloads.
+      if (e.hasAttribute("id")) properties.put("id", bind(e.getAttribute("id"), data));
+      var content = new HashMap<String, List<Node>>();
+      var defaultContent = new ArrayList<Node>();
+      for (var child : elements(e)) {
+        if (child.getTagName().equals("dui-content")) {
+          String name = child.getAttribute("name");
+          if (name.isBlank()
+              || content.putIfAbsent(name, children(child, data, budget, outlets, depth + 1))
+                  != null)
+            throw new IllegalArgumentException("Content needs a unique nonempty name");
+        } else defaultContent.addAll(expand(child, data, budget, outlets, depth + 1));
+      }
+      if (content.containsKey("default") && !defaultContent.isEmpty())
+        throw new IllegalArgumentException("Default content must be supplied once");
+      content.putIfAbsent("default", List.copyOf(defaultContent));
+      var scope = new HashMap<>(data);
+      scope.put("props", Map.copyOf(properties));
+      var expanded = children(fragments.get(type), scope, budget, content, depth + 1);
+      if (expanded.size() != 1)
+        throw new IllegalArgumentException("Component must expand to one root: " + type);
+      var visual = expanded.getFirst();
+      var props = new HashMap<>(visual.props());
+      String callerClasses = bind(e.getAttribute("class"), data).strip();
+      if (!callerClasses.isEmpty())
+        for (String name : callerClasses.split("\\s+")) {
+          var style = styles.get(name);
+          if (style == null) throw new IllegalArgumentException("Unknown style: " + name);
+          style.forEach((key, value) -> props.put(key, bind(value, data)));
+        }
+      for (String key : PLACEMENT)
+        if (e.hasAttribute(key)) props.put(key, bind(e.getAttribute(key), data));
+      return List.of(new Node(visual.type(), props, visual.children()));
+    }
     if (type.equals("if") && !bind(e.getAttribute("test"), data).equals("true")) return List.of();
     if (type.equals("repeat")) {
       String path = e.getAttribute("items").replace("{{", "").replace("}}", "");
@@ -268,11 +313,11 @@ public final class MenuTemplate {
       for (Object item : list) {
         var scope = new HashMap<>(data);
         scope.put(e.getAttribute("as"), item);
-        nodes.addAll(children(e, scope, budget));
+        nodes.addAll(children(e, scope, budget, outlets, depth + 1));
       }
       return nodes;
     }
-    if (type.equals("if")) return children(e, data, budget);
+    if (type.equals("if")) return children(e, data, budget, outlets, depth + 1);
     Map<String, String> props = new HashMap<>();
     String classes = bind(e.getAttribute("class"), data).strip();
     if (!classes.isEmpty())
@@ -281,17 +326,36 @@ public final class MenuTemplate {
         if (style == null) throw new IllegalArgumentException("Unknown style: " + name);
         style.forEach((key, value) -> props.put(key, bind(value, data)));
       }
+    var explicit = new HashMap<String, String>();
     for (int i = 0; i < e.getAttributes().getLength(); i++) {
       var a = e.getAttributes().item(i);
-      props.put(a.getNodeName(), bind(a.getNodeValue(), data));
+      explicit.put(a.getNodeName(), bind(a.getNodeValue(), data));
     }
-    return List.of(new Node(type, props, children(e, data, budget)));
+    String state =
+        "true".equals(explicit.get("locked"))
+            ? "disabled"
+            : "true".equals(explicit.get("active"))
+                ? "active"
+                : "true".equals(explicit.get("checked")) ? "selected" : "normal";
+    var resolved = StyleResolver.resolve(props, StyleResolver.state(props, state), explicit);
+    props.clear();
+    props.putAll(resolved);
+    return List.of(new Node(type, props, children(e, data, budget, outlets, depth + 1)));
   }
 
-  private List<Node> children(Element e, Map<String, Object> data, int[] budget) {
+  private static int nodeCount(Node node) {
+    return 1 + node.children().stream().mapToInt(MenuTemplate::nodeCount).sum();
+  }
+
+  private List<Node> children(
+      Element e,
+      Map<String, Object> data,
+      int[] budget,
+      Map<String, List<Node>> outlets,
+      int depth) {
     List<Node> nodes = new ArrayList<>();
     for (var child = e.getFirstChild(); child != null; child = child.getNextSibling())
-      if (child instanceof Element el) nodes.addAll(expand(el, data, budget));
+      if (child instanceof Element el) nodes.addAll(expand(el, data, budget, outlets, depth));
     return nodes;
   }
 
@@ -300,7 +364,18 @@ public final class MenuTemplate {
   }
 
   public Canvas render(Map<String, Object> data, Map<String, RasterImage> images) {
-    Node node = expand(root, data, new int[] {512}).getFirst();
+    return render(data, images, null);
+  }
+
+  public Canvas render(
+      Map<String, Object> data, Map<String, RasterImage> images, ThemeTokens tokens) {
+    Node node;
+    try {
+      node = expand(root, data, new int[] {512}, Map.of(), 0).getFirst();
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(sourceName + ": " + e.getMessage(), e);
+    }
+    node = resolveTokens(node, tokens == null ? ThemeTokens.DARK : tokens);
     UiTheme theme = UiTheme.named(node.s("theme", "default"));
     Canvas canvas =
         new Canvas(
@@ -312,11 +387,17 @@ public final class MenuTemplate {
                 : node.n("height", 306),
             theme,
             metrics);
+    if (tokens != null) canvas = new Canvas(canvas.width, canvas.height, tokens, metrics);
+    canvas.effectLimit = node.n("effect-budget", ShaderEffect.LIMIT);
+    if (canvas.effectLimit < 1 || canvas.effectLimit > RendererProtocol.MAX_EFFECTS)
+      throw new IllegalArgumentException("Effect budget 1.." + RendererProtocol.MAX_EFFECTS);
     if (!Set.of("hidden", "native").contains(node.s("focus-outline", "hidden")))
       throw new IllegalArgumentException("focus-outline must be hidden or native");
+    canvas.animationStart = Long.parseLong(node.s("animation-start", "0"));
     canvas.motionEnabled = !node.s("motion", "true").equals("false");
     canvas.hideFocusOutline = !node.s("focus-outline", "hidden").equals("native");
-    if (theme != UiTheme.DEFAULT) canvas.rect(0, 0, canvas.width, canvas.height, BG);
+    if (theme != UiTheme.DEFAULT || tokens != null)
+      canvas.rect(0, 0, canvas.width, canvas.height, BG);
     var overlays = new ArrayList<Runnable>();
     draw(canvas, node, 0, 0, canvas.width, canvas.height, overlays, false, images);
     overlays.forEach(Runnable::run);
@@ -333,6 +414,34 @@ public final class MenuTemplate {
               canvas.effects.stream().mapToInt(ShaderEffect::lifetimeTicks).max().orElse(0));
     }
     return canvas;
+  }
+
+  private static Node resolveTokens(Node n, ThemeTokens tokens) {
+    var p = new HashMap<>(n.props());
+    p.replaceAll(
+        (k, v) ->
+            Set.of("padding", "gap").contains(k) && v.startsWith("$")
+                ? Integer.toString(tokens.space(v.substring(1)))
+                : (Set.of(
+                                "fill",
+                                "border",
+                                "color",
+                                "disabled-fill",
+                                "disabled-border",
+                                "disabled-color",
+                                "selected-fill",
+                                "selected-border",
+                                "selected-color",
+                                "active-fill",
+                                "active-border",
+                                "active-color",
+                                "highlight")
+                            .contains(k)
+                        && v.startsWith("$"))
+                    ? "#%06X".formatted(tokens.color(v.substring(1)))
+                    : v);
+    return new Node(
+        n.type(), p, n.children().stream().map(ch -> resolveTokens(ch, tokens)).toList());
   }
 
   private static final int BG = 0x16171D,
@@ -353,8 +462,11 @@ public final class MenuTemplate {
     };
   }
 
-  private static int natural(Node n) {
-    if (n.props.containsKey("height") && !n.s("height", "").equals("fill"))
+  private int natural(Node n) {
+    var custom = definitions.get(n.type());
+    if (custom != null && custom.renderer() != null && !n.props().containsKey("height"))
+      return custom.height();
+    if (n.props.containsKey("height") && n.s("height", "").matches("-?[0-9]+"))
       return n.n("height", 18);
     return switch (n.type) {
       case "divider", "spacer", "badge", "progress" -> 9;
@@ -363,7 +475,7 @@ public final class MenuTemplate {
       case "stat" -> 45;
       case "nav", "entry", "dropdown" -> 27;
       case "column", "panel" ->
-          n.children.stream().mapToInt(MenuTemplate::natural).sum()
+          n.children.stream().mapToInt(this::natural).sum()
               + Math.max(0, n.children.size() - 1) * n.n("gap", 0)
               + (n.type.equals("panel") ? 18 : 0);
       default -> 18;
@@ -391,7 +503,65 @@ public final class MenuTemplate {
     c.rect(x + bevel, y + bevel, w - bevel * 2, h - bevel * 2 - 1, fill);
   }
 
-  private static void draw(
+  private void draw(
+      Canvas c,
+      Node n,
+      int x,
+      int y,
+      int w,
+      int h,
+      List<Runnable> overlays,
+      boolean positioned,
+      Map<String, RasterImage> images) {
+    try {
+      if (w < n.n("min-width", 0)
+          || w > n.n("max-width", 480)
+          || h < n.n("min-height", 0)
+          || h > n.n("max-height", 360))
+        throw new IllegalArgumentException("Layout constraints exceeded");
+      var previous = c.style(n.props());
+      var placement = c.enter(n.s("id", ""), x, y);
+      try {
+        drawNode(c, n, x, y, w, h, overlays, positioned, images);
+      } finally {
+        c.style(previous);
+        c.leave(placement);
+      }
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          sourceName
+              + " <dui-"
+              + n.type()
+              + "> id='"
+              + n.s("id", "")
+              + "' at "
+              + x
+              + ","
+              + y
+              + " "
+              + w
+              + "x"
+              + h
+              + ": "
+              + e.getMessage(),
+          e);
+    }
+  }
+
+  private static int anchor(String value, int available, int size, int inset, boolean vertical) {
+    if (!(vertical ? Set.of("top", "center", "bottom") : Set.of("left", "center", "right"))
+        .contains(value))
+      throw new IllegalArgumentException(
+          "Invalid " + (vertical ? "vertical" : "horizontal") + " anchor: " + value);
+    return switch (value) {
+      case "left", "top" -> inset;
+      case "center" -> (vertical ? (available - size) / 18 * 9 : (available - size) / 2) + inset;
+      case "right", "bottom" -> available - size - inset;
+      default -> throw new IllegalArgumentException("Invalid anchor: " + value);
+    };
+  }
+
+  private void drawNode(
       Canvas c,
       Node n,
       int x,
@@ -405,12 +575,61 @@ public final class MenuTemplate {
     if (w < 1 || h < 0 || !clippedItem && (x < 0 || y < 0 || x + w > c.width || y + h > c.height))
       throw new IllegalArgumentException("Component outside canvas: " + n.type);
     if (h == 0) return;
+    var custom = definitions.get(n.type());
+    if (custom != null && custom.renderer() != null) {
+      custom
+          .renderer()
+          .draw(
+              new ComponentContext(
+                  c,
+                  n,
+                  x,
+                  y,
+                  w,
+                  h,
+                  Map.copyOf(images),
+                  (child, cx, cy, cw, ch) -> draw(c, child, cx, cy, cw, ch, overlays, true, images),
+                  overlays::add));
+      return;
+    }
     if (n.type.equals("layer")) {
+      int left = 0, top = 0, right = w, bottom = h;
       for (Node ch : n.children) {
-        int cx = ch.n("x", 0),
-            cy = ch.n("y", 0),
-            cw = ch.s("width", "fill").equals("fill") ? w - cx : ch.n("width", w),
-            chh = ch.s("height", "fill").equals("fill") ? h - cy : ch.n("height", natural(ch));
+        String dock = ch.s("dock", "");
+        if (!dock.isBlank()) {
+          int dw = right - left, dh = bottom - top, dx = left, dy = top;
+          switch (dock) {
+            case "top" -> {
+              dh = natural(ch);
+              top += dh;
+            }
+            case "bottom" -> {
+              dh = natural(ch);
+              dy = bottom - dh;
+              bottom -= dh;
+            }
+            case "left" -> {
+              dw = LayoutLength.resolve(ch.s("width", "fill"), right - left);
+              left += dw;
+            }
+            case "right" -> {
+              dw = LayoutLength.resolve(ch.s("width", "fill"), right - left);
+              dx = right - dw;
+              right -= dw;
+            }
+            case "fill" -> {}
+            default -> throw new IllegalArgumentException("Unknown dock: " + dock);
+          }
+          if (left > right || top > bottom)
+            throw new IllegalArgumentException("Dock overflow: " + ch.type());
+          draw(c, ch, x + dx, y + dy, dw, dh, overlays, true, images);
+          continue;
+        }
+        int ox = ch.n("x", 0), oy = ch.n("y", 0);
+        int cw = LayoutLength.resolve(ch.s("width", "fill"), w - ox),
+            chh = LayoutLength.resolve(ch.s("height", "" + natural(ch)), h - oy);
+        int cx = anchor(ch.s("anchor-x", "left"), w, cw, ox, false),
+            cy = anchor(ch.s("anchor-y", "top"), h, chh, oy, true);
         boolean childClip = ch.type.equals("item") && !ch.s("clip-width", "").isBlank();
         if (cw < 1 || chh < 1 || !childClip && (cx < 0 || cy < 0 || cx + cw > w || cy + chh > h))
           throw new IllegalArgumentException("Layer overflow: " + ch.type);
@@ -483,7 +702,11 @@ public final class MenuTemplate {
                 n.n("clip-x", 0), n.n("clip-y", 0), n.n("clip-width", 0), n.n("clip-height", 0));
       }
       c.item(id, x, y, size, clip);
+      var generic = Motion.from(n.props(), c.animationStart, c.motionEnabled);
+      if (generic.isPresent()) c.motion(id, generic.orElseThrow());
       String transition = n.s("transition", "");
+      if (generic.isPresent() && !transition.isBlank())
+        throw new IllegalArgumentException("Choose generic motion or a transition preset: " + id);
       if (!transition.isBlank()) {
         try {
           c.transition(
@@ -501,7 +724,7 @@ public final class MenuTemplate {
       }
       long burst = Long.parseLong(n.s("burst-start", "-1"));
       if (burst >= 0) {
-        if (!transition.isBlank() || clipped)
+        if (!transition.isBlank() || generic.isPresent() || clipped)
           throw new IllegalArgumentException(
               "Use a separate particles component with item transitions or clips");
         if (c.confetti != null)
@@ -540,7 +763,13 @@ public final class MenuTemplate {
             h,
             n.type.equals("card") ? 0x22232B : BG,
             n.type.equals("panel") ? CYAN : EDGE);
-      int pad = n.n("padding", n.type.equals("panel") || n.type.equals("card") ? 6 : 0),
+      int
+          pad =
+              n.n(
+                  "padding",
+                  n.type.equals("panel") || n.type.equals("card")
+                      ? c.tokens().spacing().getOrDefault("medium", 6)
+                      : 0),
           py = pad == 0 ? 0 : 9;
       x += pad;
       y += py;
@@ -548,10 +777,11 @@ public final class MenuTemplate {
       h -= py * 2;
       int gap = n.n("gap", 0);
       if (n.type.equals("row") || n.type.equals("menu")) {
+        final int rowWidth = w;
         int fixed =
             n.children.stream()
                 .filter(ch -> ch.props.containsKey("width") && !ch.s("width", "").equals("fill"))
-                .mapToInt(ch -> ch.n("width", 0))
+                .mapToInt(ch -> LayoutLength.resolve(ch.s("width", "0"), rowWidth))
                 .sum();
         long flexible =
             n.children.stream()
@@ -561,17 +791,77 @@ public final class MenuTemplate {
         int left = (int) flexible;
         for (Node ch : n.children) {
           boolean auto = !ch.props.containsKey("width") || ch.s("width", "").equals("fill");
-          int cw = auto ? available / left : ch.n("width", w);
+          int cw = auto ? available / left : LayoutLength.resolve(ch.s("width", "fill"), w);
           if (auto) {
             available -= cw;
             left--;
           }
-          draw(c, ch, x, y, cw, h, overlays, positioned, images);
+          int chh = Math.min(h, natural(ch)), cy = y;
+          String alignment = n.s("cross-align", "stretch");
+          if (alignment.equals("stretch")) chh = h;
+          else if (alignment.equals("center")) cy = y + (h - chh) / 18 * 9;
+          else if (alignment.equals("end")) cy = y + h - chh;
+          else if (!alignment.equals("start"))
+            throw new IllegalArgumentException("cross-align start/center/end/stretch");
+          draw(c, ch, x, cy, cw, chh, overlays, positioned, images);
           x += cw + gap;
         }
       } else if (n.type.equals("grid")) {
         int columns = n.n("columns", 2);
         if (columns < 1 || columns > 16) throw new IllegalArgumentException("grid columns 1..16");
+        if (n.children.stream()
+            .anyMatch(
+                ch ->
+                    ch.props().containsKey("column-span") || ch.props().containsKey("row-span"))) {
+          int rowHeight =
+              n.n(
+                  "cell-height",
+                  n.children.stream()
+                      .mapToInt(ch -> natural(ch) / ch.n("row-span", 1))
+                      .max()
+                      .orElse(18));
+          int strideY = rowHeight + gap, rows = (h + gap) / strideY, strideX = (w + gap) / columns;
+          var used = new HashSet<Integer>();
+          var cells = new ArrayList<GridLayout.Cell>();
+          for (int i = 0; i < n.children.size(); i++) {
+            var ch = n.children.get(i);
+            int cs = ch.n("column-span", 1), rs = ch.n("row-span", 1);
+            boolean placed = false;
+            search:
+            for (int rr = 0; rr < rows; rr++)
+              for (int cc = 0; cc < columns; cc++) {
+                if (cs < 1 || rs < 1 || cc + cs > columns || rr + rs > rows) continue;
+                boolean free = true;
+                for (int yy = rr; yy < rr + rs; yy++)
+                  for (int xx = cc; xx < cc + cs; xx++)
+                    if (used.contains(yy * columns + xx)) free = false;
+                if (!free) continue;
+                for (int yy = rr; yy < rr + rs; yy++)
+                  for (int xx = cc; xx < cc + cs; xx++) used.add(yy * columns + xx);
+                cells.add(new GridLayout.Cell("" + i, cc, rr, cs, rs));
+                placed = true;
+                break search;
+              }
+            if (!placed)
+              throw new IllegalArgumentException(
+                  "Spanning grid overflow: " + ch.s("id", ch.type()));
+          }
+          var boxes = GridLayout.place(cells, columns, rows, x, y, strideX, strideY, gap, gap);
+          for (int i = 0; i < boxes.size(); i++) {
+            var b = boxes.get(i);
+            draw(
+                c,
+                n.children.get(i),
+                b.x(),
+                b.y(),
+                b.width(),
+                b.height(),
+                overlays,
+                positioned,
+                images);
+          }
+          return;
+        }
         int cw = (w - gap * (columns - 1)) / columns, cy = y, index = 0, rh = 0;
         for (Node ch : n.children) {
           int chh = natural(ch);
@@ -589,7 +879,7 @@ public final class MenuTemplate {
         int fixed =
             n.children.stream()
                 .filter(ch -> !ch.s("height", "").equals("fill"))
-                .mapToInt(MenuTemplate::natural)
+                .mapToInt(this::natural)
                 .sum();
         long fill = n.children.stream().filter(ch -> ch.s("height", "").equals("fill")).count();
         int available = h - fixed - gap * Math.max(0, n.children.size() - 1), left = (int) fill;
@@ -626,16 +916,22 @@ public final class MenuTemplate {
         c.text(x, ty, w, label, color(n, "color", WHITE));
       }
       case "text" -> {
-        int tx =
-            n.s("align", "").equals("center")
-                ? x + (w - c.metrics().width(c.metrics().fit(label, w))) / 2
-                : x;
-        c.text(
-            tx,
-            ty,
-            w - (tx - x),
-            label,
-            color(n, "color", n.s("tone", "").equals("") ? MUTED : accent));
+        boolean wrap = n.b("wrap");
+        var lines =
+            wrap
+                ? c.metrics().wrap(label, w, Math.min(n.n("max-lines", Math.max(1, h / 9)), h / 9))
+                : List.of(c.metrics().fit(label, w));
+        int lineY = wrap ? y : ty;
+        for (String line : lines) {
+          int tx = anchor(n.s("align", "left"), w, c.metrics().width(line), 0, false) + x;
+          c.text(
+              tx,
+              lineY,
+              w - (tx - x),
+              line,
+              color(n, "color", n.s("tone", "").equals("") ? MUTED : accent));
+          lineY += 9;
+        }
       }
       case "divider" -> c.rect(x, y + 3, w, 1, EDGE);
       case "spacer" -> {}
