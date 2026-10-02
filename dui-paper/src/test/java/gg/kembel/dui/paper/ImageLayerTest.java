@@ -9,8 +9,24 @@ import org.junit.jupiter.api.Test;
 
 class ImageLayerTest {
   @Test
+  void rgbaUsesTaggedAlphaGlyphsAndTransparentPixelsOnlyAdvanceThePen() {
+    var c = new Canvas(120, 9, RenderEnvironment.plain(new GlyphFont(Map.of("?", 6))));
+    c.image("alpha", 0, 0, 3, 1, 1, RasterImage.argb(3, 1, new int[] {0, 0x88112233, 0xff445566}));
+    var component =
+        new CanvasRenderer().render(c, h -> net.kyori.adventure.key.Key.key("test", "hit"));
+    String text =
+        net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+            .serialize(component);
+    assertTrue(text.indexOf(GlyphAtlas.rectangle(0, 1, 8)) >= 0);
+    assertTrue(text.indexOf(GlyphAtlas.rectangle(0, 1)) >= 0);
+    var colors = new ArrayList<Integer>();
+    collect(component, colors);
+    assertFalse(colors.contains(0));
+  }
+
+  @Test
   void backgroundPaintsAndForegroundKeepTheirExplicitDrawOrder() throws Exception {
-    var c = new Canvas(120, 9);
+    var c = new Canvas(120, 9, RenderEnvironment.plain(new GlyphFont(java.util.Map.of("?", 6))));
     var back = new RasterImage(1, 1, new int[] {0x112233});
     var front = new RasterImage(1, 1, new int[] {0x778899});
     c.image("back", 0, 0, 8, 9, 3, back, true);
@@ -27,14 +43,14 @@ class ImageLayerTest {
         "<dui-menu width='120' height='9'><dui-image source='a' image-layer='%s' width='120'"
             + " height='9'/></dui-menu>";
     assertTrue(
-        MenuTemplate.parse(xml.formatted("background"))
+        TestEnvironment.parse(xml.formatted("background"))
             .render(Map.of(), Map.of("a", back))
             .images
             .getFirst()
             .background());
     assertThrows(
         IllegalArgumentException.class,
-        () -> MenuTemplate.parse(xml.formatted("top")).render(Map.of(), Map.of("a", back)));
+        () -> TestEnvironment.parse(xml.formatted("top")).render(Map.of(), Map.of("a", back)));
   }
 
   private static void collect(Component c, List<Integer> colors) {

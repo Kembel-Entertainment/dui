@@ -1,106 +1,49 @@
 # dui
 
-**Work in Progress.** A template-driven UI library for Paper servers and unmodified Minecraft clients. API and pack formats may change before a stable release.
+**Work in progress.** A design-neutral, template-driven UI library for Paper 26.2 / Java 25 and unmodified Minecraft clients. Built by [Kembel Entertainment](https://kembel.gg); packages and Maven group: `gg.kembel.dui`.
 
-Built by [Kembel Entertainment](https://kembel.gg). Java packages and Maven group: `gg.kembel.dui`.
+Applications own their designs, components, assets and rules. The library provides layout, rendering, generic control behavior, native models, animation transport, sessions and input. A playing card, wheel, equipment slot or gift animation is an application component. None is bundled in the library.
 
-Start with [your first plugin](docs/quickstart.md), a complete buildable example, then [application APIs](docs/application-api.md) and [application recipes](docs/recipes.md) for stateful controls, media and forms. For coding agents, supply [the LLM guide](docs/llm-guide.md); [llms.txt](llms.txt) indexes the documentation.
-
-| Module | Purpose |
+| Module | Responsibility |
 | --- | --- |
-| `dui-core` | Strict templates, data binding, layout, hit regions, themes, runtime images and effect parameters |
-| `dui-paper` | Embedded Paper API, player sessions, callbacks, Adventure components, heads and native item carriers |
-| `dui-pack` | Build-time fonts, native-model wrappers, owned contributions and shared GUI shaders |
-| `dui-components` | Optional namespaced visual components, reusable chrome and resource-driven native reels |
-| `dui-test` | Portable fake scheduler, render contracts and consumer action-sequence harness |
+| `dui-core` | XML templates, typed properties, layout, skins, glyph/shader contracts, motion, resources, world-map geometry |
+| `dui-paper` | Pack readiness, Adventure rendering, dialogs, native items/skins, callbacks, camera-map input and lifecycle |
+| `dui-pack` | Verified vanilla input, font bands, native-model wrappers, consumer asset/shader compilation, deterministic pack metadata |
+| `dui-test` | Render assertions, fake scheduler and portable consumer test harness |
 
-The example application and real-client tests live in the separate [dui-demo](https://github.com/Kembel-Entertainment/dui-demo) repository. dui has no commands, shop state, balances, reward logic, network feed service or built-in pack HTTP server.
+The separate [dui-demo](https://github.com/Kembel-Entertainment/dui-demo) owns all showcase and game implementations. Its independent `extension-proof` module demonstrates a new component, control skin, glyph and typed shader without importing demo internals or changing dui.
 
-## Build
-
-Use Java 25:
+## Build and embed
 
 ```sh
-./gradlew build
+./gradlew build :dui-pack:componentDocs
 ./gradlew publishToMavenLocal
 ```
 
-Builds and unit tests do not start Minecraft. Pack tests generate their own synthetic inputs. Generated pack files and game inputs are not checked into this repository.
+Java 25 is required. Unit builds do not start Minecraft. No public Maven release exists yet; embed `gg.kembel.dui:dui-paper:0.2.0-SNAPSHOT` and its runtime dependencies in your own plugin. Paper/Adventure remain server-provided. Use `dui-pack` only at build time.
 
-## Embed in a Paper plugin
+Start with [quickstart](docs/quickstart.md), then [extensions](docs/extensions.md), [application APIs](docs/application-api.md) and [components](docs/components.md). Supply [the LLM guide](docs/llm-guide.md) and [llms.txt](llms.txt) to a coding agent. Existing consumers must follow [the 0.2 migration](docs/migration-0.2.md).
 
-```groovy
-repositories {
-    mavenLocal() // local WIP distribution; no remote Maven release yet
-    mavenCentral()
-    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
-}
-dependencies {
-    implementation 'gg.kembel.dui:dui-paper:0.1.0-SNAPSHOT'
-    compileOnly 'io.papermc.paper:paper-api:26.2.build.129-stable'
-}
-```
-
-Package dui and its runtime dependencies inside your plugin. Paper, Adventure and the Paper API remain provided by the server. `dui-demo` demonstrates a self-contained plugin JAR. For production builds, a shading tool may relocate `gg.kembel.dui` and Gson; preserve `/ui` resources and the `dui:` pack namespace. No separate dui server plugin is installed.
-
-```java
-PackMetadata metadata = PackMetadata.read(dataFolder.resolve("pack/dui.json"));
-PackDescriptor pack = PackDescriptor.of(URI.create("https://example.com/dui.zip"), metadata);
-Dui ui = Dui.create(this, pack, metadata);
-MenuTemplate menu = ui.compile(Files.readString(dataFolder.resolve("menu.html")));
-DialogSession session = ui.open(player, menu,
-    ViewModel.data(Map.of("name", player.getName())),
-    context -> {
-        if (context.action().equals("hello")) {
-            player.sendMessage("Hello!");
-            context.session().close();
-        }
-    });
-```
-
-```xml
-<dui-menu width="300" height="90">
-  <dui-column gap="9">
-    <dui-heading label="Hello {{name}}" height="27" />
-    <dui-button id="hello" action="hello" label="Say hello" height="27" />
-  </dui-column>
-</dui-menu>
-```
-
-The session waits for the matching resource pack to load. It can update its template/view/options/handler, report a server-known close with `onClose`, and close explicitly. The example closes after **Say hello**. Accepted custom actions consume the displayed revision's callbacks; update the session if it should remain interactive. Call `ui.close()` from your plugin's `onDisable`. All Paper-facing mutations must run on the main server thread. See the LLM guide for Escape handling and asynchronous update limits.
-
-Use `DialogOptions` for titles, native form inputs, confirmation buttons and exit actions. `ViewModel` supplies data, image keys, real ItemStacks and explicit HTTP(S) links keyed by hit ID. Applications validate form values and authorize their own business actions.
-
-## Resource pack
-
-Build from a verified official Minecraft 26.2 client JAR:
+## Pack contract
 
 ```sh
-./gradlew :dui-pack:generatePack -PminecraftJar=/path/to/minecraft-26.2-client.jar
+./gradlew :dui-pack:generatePack -PminecraftJar=/path/to/verified/minecraft-26.2-client.jar
 ```
 
-Output: `dui-pack/build/pack/dui.zip` and `dui.json`. Host the ZIP yourself and deploy the matching metadata with the plugin. The generator verifies the client JAR against the pinned official SHA-1. Its download URL and checksum are in the pack module's `dui/minecraft.json` manifest.
+The bare generator builds technical rendering assets, with no design preset. To add your glyphs, shader components, models or map imagery, call `PackGenerator.generate(clientJar, ownAssets, output, contributions)`. Deploy the generated ZIP and matching `dui.json` together and host the ZIP yourself. Runtime image pixels and ordinary template changes do not need a pack rebuild.
 
-`PackGenerator.generate(clientJar, additionsDirectory, outputDirectory)` supports your own `assets/<namespace>/...` files. Item definitions under `items/` receive native-render wrappers and appear in the metadata registry. Keep application assets outside `dui:`. Repeated builds from identical inputs produce identical ZIP bytes and hashes.
+Renderer and world-map protocols are version 4. Parameter schemas, addresses, geometry and hashes are compiled into the pack and validated by the runtime. Definitions have deterministic addresses; application code uses logical IDs. A schema mismatch fails explicitly.
 
-Runtime images use RGB-tinted rectangle glyphs. They do not add thumbnails to the pack or require a pack reload. Supply a bounded `RasterImage` map and reference a key with `<dui-image source="{{imageKey}}" .../>`.
+## Supported boundaries
 
-## Status and limits
+- Canvas: 120–480 GUI pixels wide, 9–360 high in nine-pixel rows. Hits use the same row grid.
+- Caller-owned controls use `WidgetSkinRegistry`; there are no built-in palettes, icon pictures or preset animation styles.
+- Generic native-model and procedural motion, clipping and whole-object popup coverage are available. The native full-body skin component remains a generic rendering primitive.
+- Eight shader invocations by default, explicit budgets up to 32, packed by actual bit cost. A shader schema may use up to 240 parameter bits.
+- Camera maps have caller-owned geometry, opening transforms, depths, pulse rates and HUD templates. No default map legend is bundled.
+- The vanilla server cannot read GUI scale/window size or raw dialog drag events. Offer explicit layout preferences.
+- Core-shader merging with third-party packs and arbitrary cross-backend painter ordering are not supported.
 
-- Paper/Minecraft **26.2**, Java **25**; locally verified on macOS ARM64 with the vanilla renderer.
-- HTML-like XML component DSL, not a browser: no CSS engine, DOM or JavaScript.
-- Canvas widths 120–480 GUI pixels; heights up to 360 in 9-pixel rows. Click regions follow that row grid.
-- Generic native-model transitions (pop, bounce, lift, signed horizontal slide) and fixed clipping viewports; the carousel recipe needs no menu-specific shader. Vanilla callbacks expose clicks, not drag/swipe gestures.
-- Eight effects by default; protocol 2 supports an explicit budget up to 32 with bounded batches. Runtime images retain the 16,384 sampled-pixel budget.
-- GUI scale and window dimensions are not available to a vanilla server. Applications offer Compact/Spacious choices.
-- Native form inputs retain Minecraft's native dialog layout. Resource packs that replace the same core shaders require integration work.
-- Pack/API versions are matched explicitly; multi-version support and shared-pack coordination across independently versioned plugins are future work.
+Technical geometry, signatures, units and capacity limits remain fixed to the supported Minecraft version. These are renderer contracts, not application design. Details and validation limits are in [rendering](docs/rendering.md), [world maps](docs/world-map.md), and [compatibility](docs/compatibility.md). Code is [MIT](LICENSE); see [third-party notices](THIRD_PARTY_NOTICES.md) for vanilla-derived build inputs.
 
-See [quickstart](docs/quickstart.md), [LLM guide](docs/llm-guide.md), [components](docs/components.md), [architecture](docs/architecture.md), [rendering protocol](docs/rendering.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Own code is licensed under [MIT](LICENSE).
-
-## Extension APIs and roadmap
-
-Read [Component composition and UI work](docs/composition.md) for implemented component registries, template fragments, session tasks, relative layout, pagination and resource planning. The [completed abstraction roadmap](docs/roadmap.md) records the migration and backend boundaries. [Application APIs](docs/application-api.md) cover controllers, collections, tokens, resources, tracks, extensions and testing; [compatibility](docs/compatibility.md) defines the WIP release contract.
-
-
-Full-body GPU skins and vanilla armor are exposed by `dui-player-model` and `ViewModel.appearances`. See [the player-model contract](docs/player-model.md) for geometry, dynamic profiles, capability negotiation and v1 limitations. The separate demo uses this API for its Aster character sheet with real inventory equipment.
+See [dynamic composition](docs/dynamic-composition.md) for measured/typed components, shared group geometry, RGBA/fonts, keyframes, runtime map layers, registered model cameras and trusted Paper backend extensions. Renderer/world-map protocol 4 packs must be rebuilt together with metadata.

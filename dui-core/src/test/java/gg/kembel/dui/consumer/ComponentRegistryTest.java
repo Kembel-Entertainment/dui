@@ -18,17 +18,19 @@ class ComponentRegistryTest {
                 c -> c.canvas().text(c.x(), c.y(), c.width(), c.node().s("message", ""), 0x123456))
             .build();
     var template =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             "<dui-menu width='150' height='36'><dui-column>"
                 + "<dui-acme-status message='{{text}}'/></dui-column></dui-menu>",
-            new GlyphFont(),
+            TestEnvironment.font(),
             registry);
     assertEquals("consumer", template.render(Map.of("text", "consumer")).paints.getFirst().text());
     assertThrows(
         Exception.class,
         () ->
-            MenuTemplate.parse(
-                "<dui-menu><dui-acme-status typo='oops'/></dui-menu>", new GlyphFont(), registry));
+            TestEnvironment.parse(
+                "<dui-menu><dui-acme-status typo='oops'/></dui-menu>",
+                TestEnvironment.font(),
+                registry));
   }
 
   @Test
@@ -46,13 +48,13 @@ class ComponentRegistryTest {
                 """)
             .build();
     var template =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             """
             <dui-menu width='150' height='36'><dui-acme-card record='{{record}}'>
               <dui-content name='footer'><dui-text label='{{caption}}'/></dui-content>
             </dui-acme-card></dui-menu>
             """,
-            new GlyphFont(),
+            TestEnvironment.font(),
             registry);
     var canvas =
         template.render(
@@ -65,7 +67,7 @@ class ComponentRegistryTest {
   @Test
   void localFragmentsAndStylesRemainScoped() throws Exception {
     var template =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             """
             <dui-menu width='150' height='36'>
               <dui-style id='ink' color='#FFFFFF'/>
@@ -94,17 +96,20 @@ class ComponentRegistryTest {
     assertThrows(
         Exception.class,
         () ->
-            MenuTemplate.parse(
-                "<dui-menu><dui-acme-later/></dui-menu>", new GlyphFont(), snapshot));
+            TestEnvironment.parse(
+                "<dui-menu><dui-acme-later/></dui-menu>", TestEnvironment.font(), snapshot));
     var recursive =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             """
             <dui-menu><dui-component name='acme-loop'><dui-acme-loop/></dui-component><dui-acme-loop/></dui-menu>
             """);
     assertThrows(IllegalArgumentException.class, () -> recursive.render(Map.of()));
     var missing =
-        MenuTemplate.parse(
-            "<dui-menu><dui-acme-box/></dui-menu>", new GlyphFont(), snapshot, "ui/example.html");
+        TestEnvironment.parse(
+            "<dui-menu><dui-acme-box/></dui-menu>",
+            TestEnvironment.font(),
+            snapshot,
+            "ui/example.html");
     assertTrue(
         assertThrows(IllegalArgumentException.class, () -> missing.render(Map.of()))
             .getMessage()
@@ -112,9 +117,9 @@ class ComponentRegistryTest {
     assertThrows(
         Exception.class,
         () ->
-            MenuTemplate.parse(
+            TestEnvironment.parse(
                 "<dui-menu><dui-acme-box label='hi' bad='x'/></dui-menu>",
-                new GlyphFont(),
+                TestEnvironment.font(),
                 snapshot));
   }
 
@@ -129,11 +134,11 @@ class ComponentRegistryTest {
                     + " name='default'/></dui-column></dui-fragment>")
             .build();
     var template =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             "<dui-menu width='150' height='36'><dui-acme-wrapper><dui-button id='one' label='A'"
                 + " action='a'/><dui-button id='two' label='B' action='b'/>"
                 + "</dui-acme-wrapper></dui-menu>",
-            new GlyphFont(),
+            TestEnvironment.font(),
             registry);
     assertEquals(
         List.of("one", "two"),
@@ -151,11 +156,11 @@ class ComponentRegistryTest {
                     + "<dui-outlet name='default'/></dui-repeat></dui-layer></dui-fragment>")
             .build();
     var template =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             "<dui-menu><dui-acme-repeat rows='{{rows}}'><dui-column><dui-repeat items='rows'"
                 + " as='row'><dui-text label='x'/></dui-repeat></dui-column>"
                 + "</dui-acme-repeat></dui-menu>",
-            new GlyphFont(),
+            TestEnvironment.font(),
             registry);
     assertTrue(
         assertThrows(
@@ -168,7 +173,7 @@ class ComponentRegistryTest {
   @Test
   void callSiteClassesOverrideTheComposedRootStyle() throws Exception {
     var template =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             """
             <dui-menu width='150' height='18'>
               <dui-style id='alert' color='#BB3344'/>

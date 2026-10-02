@@ -1,0 +1,19 @@
+// Generated from protocol/world-map.json.
+const int DUI_MAP_VERSION = 4;
+const int DUI_MAP_DYNAMIC_STAMP_COLOR = 214;
+const int DUI_MAP_WORLD_COLOR = 211;
+const int DUI_MAP_HUD_COLOR = 210;
+const int DUI_MAP_MAX_ZOOM = 31;
+const int DUI_MAP_MAX_LAYERS = 128;
+const int DUI_MAP_MAX_MAPS = 64;
+const int DUI_MAP_CORNER_BASE = 128;
+const int DUI_MAP_OPENING_MODULO = 160;
+const int DUI_MAP_OPENING_OFFSET = 64;
+const int DUI_MAP_HUD_STAMP_COLOR = 212;
+const int DUI_MAP_HUD_MASK_STAMP_COLOR = 213;
+const int DUI_MAP_HUD_PEN_STRIDE = 1024;
+const int DUI_MAP_HUD_PEN_BIAS = 512;
+const int DUI_MAP_HUD_OPACITY_STEPS = 256;
+const int DUI_MAP_HUD_MAX_OFFSET_Y = 360;
+const int DUI_MAP_HUD_VIRTUAL_WIDTH = 480;
+const int DUI_MAP_HUD_VIRTUAL_HEIGHT = 360;

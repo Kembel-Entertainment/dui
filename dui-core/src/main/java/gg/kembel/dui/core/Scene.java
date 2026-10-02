@@ -12,7 +12,7 @@ public record Scene(
     List<Canvas.Head> heads,
     List<Canvas.Item> items,
     List<Canvas.Hit> hits,
-    List<ShaderEffect> effects,
+    List<ShaderInvocation> effects,
     List<Coverage> coverage,
     List<Node> nodes,
     List<Canvas.PlayerModel> playerModels) {
@@ -22,7 +22,7 @@ public record Scene(
       List<Canvas.Head> heads,
       List<Canvas.Item> items,
       List<Canvas.Hit> hits,
-      List<ShaderEffect> effects,
+      List<ShaderInvocation> effects,
       List<Coverage> coverage,
       List<Node> nodes) {
     this(paints, images, heads, items, hits, effects, coverage, nodes, List.of());
@@ -188,17 +188,17 @@ public record Scene(
    * retained.
    */
   public Canvas plan(Canvas source) {
-    var result = new Canvas(source.width, source.height, source.tokens(), source.metrics());
+    var result = new Canvas(source.width, source.height, source.environment());
     result.motionEnabled = source.motionEnabled;
     result.hideFocusOutline = source.hideFocusOutline;
+    result.focusOutlineColor = source.focusOutlineColor;
     result.animation = source.animation;
     result.animationStart = source.animationStart;
-    result.confetti = source.confetti;
     result.effectLimit = source.effectLimit;
+    result.primitives.addAll(source.primitives);
     result.placements.putAll(source.placements);
     result.paints.addAll(paints);
     result.hits.addAll(hits);
-    result.transitions.putAll(source.transitions);
     result.motions.putAll(source.motions);
     result.effectMotions.putAll(source.effectMotions);
     result.clips.putAll(source.clips);

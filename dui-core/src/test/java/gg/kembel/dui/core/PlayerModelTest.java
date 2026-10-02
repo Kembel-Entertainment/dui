@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 class PlayerModelTest {
   @Test
   void containsAndQuantizesWithoutStretch() {
-    var c = new Canvas(320, 180);
+    var c = new Canvas(320, 180, RenderEnvironment.plain(TestEnvironment.font()));
     c.playerModel("hero", "viewer", 10, 9, 100, 135, 3, true, true);
     var p = c.playerModels.getFirst();
     assertEquals(72, p.width());
@@ -21,7 +21,7 @@ class PlayerModelTest {
 
   @Test
   void popupsHideTheWholeSkinAndItsArmorViewport() {
-    var c = new Canvas(320, 180);
+    var c = new Canvas(320, 180, RenderEnvironment.plain(TestEnvironment.font()));
     c.playerModel("before", "viewer", 0, 0, 72, 108, 0, true, false);
     c.cover("dropdown", 50, 9, 100, 27);
     c.playerModel("after", "viewer", 180, 0, 48, 72, 7, true, false);
@@ -34,7 +34,7 @@ class PlayerModelTest {
 
   @Test
   void popupKeepsTheCanvasBackground() {
-    var c = new Canvas(320, 180);
+    var c = new Canvas(320, 180, RenderEnvironment.plain(TestEnvironment.font()));
     c.image("background", 0, 0, 320, 180, 8, new RasterImage(1, 1, new int[] {0x17232A}), true);
     c.cover("picker", 100, 9, 100, 27);
     assertEquals(1, c.renderPlan().images.size());
@@ -42,7 +42,7 @@ class PlayerModelTest {
 
   @Test
   void invalidFacingGridBoundsAndDuplicateIdsFailEarly() {
-    var c = new Canvas(320, 180);
+    var c = new Canvas(320, 180, RenderEnvironment.plain(TestEnvironment.font()));
     assertThrows(
         IllegalArgumentException.class,
         () -> c.playerModel("hero", "viewer", 0, 0, 48, 72, 8, true, false));
@@ -61,7 +61,7 @@ class PlayerModelTest {
   @Test
   void templatesCanDeclareRichPopupCoverage() throws Exception {
     var t =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             "<dui-menu width=\"320\" height=\"180\"><dui-layer height=\"fill\"><dui-player-model"
                 + " id=\"hero\" source=\"viewer\" width=\"72\" height=\"108\"/><dui-layer"
                 + " id=\"picker\" x=\"50\" y=\"9\" width=\"100\" height=\"27\" cover=\"true\""

@@ -134,6 +134,48 @@ public final class VanillaAssets implements AutoCloseable {
     return result;
   }
 
+  /** Same source pixels/advances as the native font, normalized to the canvas baseline. */
+  public gg.kembel.dui.core.BitmapFont bitmapFont() throws IOException {
+    var result = new TreeMap<String, gg.kembel.dui.core.BitmapFont.Glyph>();
+    var metrics = metrics();
+    for (var entry : providers("default")) {
+      var p = entry.getAsJsonObject();
+      if (p.get("type").getAsString().equals("space")) continue;
+      var image =
+          javax.imageio.ImageIO.read(
+              new ByteArrayInputStream(
+                  read(
+                      p.get("file")
+                          .getAsString()
+                          .replace("minecraft:", "assets/minecraft/textures/"))));
+      var rows = p.getAsJsonArray("chars");
+      int columns = rows.get(0).getAsString().codePointCount(0, rows.get(0).getAsString().length());
+      int cw = image.getWidth() / columns,
+          ch = image.getHeight() / rows.size(),
+          ascent = p.get("ascent").getAsInt();
+      for (int row = 0; row < rows.size(); row++) {
+        int[] chars = rows.get(row).getAsString().codePoints().toArray();
+        for (int col = 0; col < chars.length; col++) {
+          String key = Character.toString(chars[col]);
+          if (chars[col] == 0 || result.containsKey(key) || !metrics.containsKey(key)) continue;
+          var pixels = new ArrayList<Integer>();
+          for (int yy = 0; yy < 9; yy++)
+            for (int xx = 0; xx < cw; xx++) {
+              int sy = yy - 7 + ascent;
+              pixels.add(sy < 0 || sy >= ch ? 0 : image.getRGB(col * cw + xx, row * ch + sy));
+            }
+          result.put(key, new gg.kembel.dui.core.BitmapFont.Glyph(cw, 9, metrics.get(key), pixels));
+        }
+      }
+    }
+    metrics.forEach(
+        (key, advance) ->
+            result.putIfAbsent(
+                key,
+                new gg.kembel.dui.core.BitmapFont.Glyph(1, 9, advance, Collections.nCopies(9, 0))));
+    return new gg.kembel.dui.core.BitmapFont("dui:default", 9, result);
+  }
+
   @Override
   public void close() throws IOException {
     jar.close();

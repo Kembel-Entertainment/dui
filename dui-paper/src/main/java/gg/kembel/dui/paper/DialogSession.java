@@ -8,6 +8,13 @@ public final class DialogSession {
   final Dui owner;
   final Player player;
   long revision;
+  long callbackRevision;
+
+  record ActionIdentity(String id, String action, String value, boolean closes, boolean canvas) {}
+
+  final java.util.Map<ActionIdentity, net.kyori.adventure.key.Key> actionKeys =
+      new java.util.HashMap<>();
+  final java.util.Set<ActionIdentity> liveActions = new java.util.HashSet<>();
   boolean active = true;
   Runnable closed = () -> {};
   Canvas canvas;
@@ -28,6 +35,8 @@ public final class DialogSession {
 
   private final TaskScope tasks;
   private TaskScope viewTasks;
+  private UiScheduler.Cancellation animation = () -> {};
+  boolean sampling;
 
   DialogSession(Dui owner, Player player) {
     this.owner = owner;
@@ -51,6 +60,7 @@ public final class DialogSession {
   }
 
   void disposeTasks() {
+    animation.cancel();
     tasks.close();
     viewTasks.close();
   }
@@ -86,6 +96,10 @@ public final class DialogSession {
     owner.mainThread();
     if (!active) throw new IllegalStateException("Dialog session is closed");
     owner.validate(canvas, model);
+    if (!sampling) {
+      animation.cancel();
+      callbackRevision++;
+    }
     viewTasks.close();
     viewTasks = new TaskScope(owner.scheduler(), () -> active && player.isOnline());
     this.canvas = canvas;
@@ -94,6 +108,45 @@ public final class DialogSession {
     this.handler = handler;
     revision++;
     owner.display(this);
+  }
+
+  public record Frame(Canvas canvas, ViewModel model) {}
+
+  /**
+   * General frame sampler for text/image/group tracks; native shader Motion remains client-side.
+   */
+  public UiScheduler.Cancellation animate(
+      long duration, int interval, java.util.function.LongFunction<Frame> frames) {
+    return animate(duration, interval, frames, frame -> {});
+  }
+
+  /** Optional observer runs after a frame has been validated and displayed. */
+  public UiScheduler.Cancellation animate(
+      long duration,
+      int interval,
+      java.util.function.LongFunction<Frame> frames,
+      java.util.function.Consumer<Frame> displayed) {
+    owner.mainThread();
+    if (!active) throw new IllegalStateException("Dialog session is closed");
+    animation.cancel();
+    callbackRevision++;
+    owner.clearCallbacks(this);
+    animation =
+        tasks.sample(
+            "__dui_animation",
+            duration,
+            interval,
+            age -> {
+              var frame = java.util.Objects.requireNonNull(frames.apply(age));
+              sampling = true;
+              try {
+                update(frame.canvas(), frame.model(), options, handler);
+              } finally {
+                sampling = false;
+              }
+              displayed.accept(frame);
+            });
+    return animation;
   }
 
   public void close() {

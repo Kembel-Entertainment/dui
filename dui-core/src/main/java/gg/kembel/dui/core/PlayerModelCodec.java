@@ -1,22 +1,21 @@
 package gg.kembel.dui.core;
 
-/** Version-one transport for the marked native skin glyph. Independent of item protocol v2. */
+/** Registered camera-family transport for marked native skin glyphs. */
 public final class PlayerModelCodec {
-  public static final String CAPABILITY = "player-model-v1";
-  public static final int MARKER = 0xE7A000;
-  private static final int[] HEIGHTS = {72, 108, 162, 216};
+  public static final String CAPABILITY = "player-model-v2";
+  public static final int MARKER = RendererProtocol.PLAYER_SIGNATURE;
 
   private PlayerModelCodec() {}
 
   public static int height(int available) {
-    for (int i = HEIGHTS.length - 1; i >= 0; i--) if (HEIGHTS[i] <= available) return HEIGHTS[i];
-    throw new IllegalArgumentException("Player model needs at least 48x72 pixels");
+    return PlayerRenderSpec.standard()
+        .viewports()
+        .get(PlayerRenderSpec.standard().fit(480, available))
+        .height();
   }
 
   public static int flags(Canvas.PlayerModel model, boolean slim, boolean motion) {
-    int code = -1;
-    for (int i = 0; i < HEIGHTS.length; i++) if (HEIGHTS[i] == model.height()) code = i;
-    if (code < 0) throw new IllegalArgumentException("Unsupported player model height");
+    int code = model.viewportIndex();
     return code
         | (model.facing() << 2)
         | (slim ? 32 : 0)
@@ -25,9 +24,15 @@ public final class PlayerModelCodec {
   }
 
   public static int color(int flags, int band) {
-    if (flags < 0 || flags > 255 || band < 0 || band >= 24)
+    if (flags < 0 || flags > 255 || band < 0 || band >= (1 << RendererProtocol.PLAYER_BAND_BITS))
       throw new IllegalArgumentException("Player model transport range");
     return MARKER | flags | (band << 8);
+  }
+
+  public static int color(int flags, int band, int renderer) {
+    if (renderer < 0 || renderer >= (1 << RendererProtocol.PLAYER_RENDERER_BITS))
+      throw new IllegalArgumentException("Player renderer transport");
+    return color(flags, band) | (renderer << (8 + RendererProtocol.PLAYER_BAND_BITS));
   }
 
   public static String armorModel(String material, boolean leggings) {

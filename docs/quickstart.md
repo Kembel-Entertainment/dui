@@ -35,7 +35,7 @@ repositories {
     maven { url = 'https://repo.papermc.io/repository/maven-public/' }
 }
 dependencies {
-    implementation 'gg.kembel.dui:dui-paper:0.1.0-SNAPSHOT'
+    implementation 'gg.kembel.dui:dui-paper:0.2.0-SNAPSHOT'
     compileOnly 'io.papermc.paper:paper-api:26.2.build.129-stable'
 }
 java {
@@ -76,11 +76,11 @@ Replace the example URL with the endpoint serving your generated ZIP. dui reques
 `src/main/resources/ui/menu.html`:
 
 ```xml
-<dui-menu width="300" height="126" padding="9" theme="studio">
+<dui-menu width="300" height="126" padding-x="9" padding-y="9" background="#132736">
   <dui-column gap="9">
-    <dui-heading label="Hello {{name}}" height="18" />
-    <dui-text label="Clicks: {{count}}" height="18" />
-    <dui-text label="The server owns this counter." height="18" />
+    <dui-heading color="#E2EDF5" label="Hello {{name}}" height="18" />
+    <dui-text color="#E2EDF5" label="Clicks: {{count}}" height="18" />
+    <dui-text color="#E2EDF5" label="The server owns this counter." height="18" />
     <dui-button id="increment" action="increment" label="Add one" height="27" />
   </dui-column>
 </dui-menu>
@@ -91,7 +91,7 @@ Replace the example URL with the endpoint serving your generated ZIP. dui reques
 ```java
 package example.dui;
 
-import gg.kembel.dui.core.MenuTemplate;
+import gg.kembel.dui.core.*;
 import gg.kembel.dui.paper.ActionContext;
 import gg.kembel.dui.paper.DialogOptions;
 import gg.kembel.dui.paper.Dui;
@@ -122,7 +122,16 @@ public final class ExampleUiPlugin extends JavaPlugin {
             var uri = URI.create(Objects.requireNonNull(getConfig().getString("pack-url")));
             ui = Dui.create(this, PackDescriptor.of(uri, metadata), metadata);
             try (var input = Objects.requireNonNull(getResource("ui/menu.html"))) {
-                menu = ui.compile(new String(input.readAllBytes(), StandardCharsets.UTF_8));
+                var skin = new WidgetSkinRegistry.Skin(27, 0, 0, 18,
+                    (ctx, part) -> {
+                        ctx.canvas().rect(ctx.x(), ctx.y(), ctx.width(), ctx.height(), 0x235968);
+                        TextLayout.draw(ctx.canvas(), ctx.node().s("label", ""),
+                            ctx.x(), ctx.y(), ctx.width(), ctx.height(), "center", false, 1, 0xE2EDF5);
+                    }, (node, width, height) -> Map.of());
+                var environment = new RenderEnvironment(metadata.font(), ThemeTokens.EMPTY,
+                    new WidgetSkinRegistry(Map.of("button", skin)));
+                menu = ui.compile("ui/menu.html", new String(input.readAllBytes(), StandardCharsets.UTF_8),
+                    ComponentRegistry.EMPTY, environment);
             }
             Objects.requireNonNull(getCommand("exampleui")).setExecutor((sender, command, label, args) -> {
                 if (sender instanceof Player player) {
@@ -172,4 +181,4 @@ Layouts use GUI pixels, not physical screen pixels. See [components](components.
 
 ## Growing beyond the first screen
 
-Keep this low-level example for a small menu. For a reusable application use [MenuController, catalogue and resources](application-api.md), install optional components explicitly, and test pure projections with dui-test. The companion Field Journal and Protocol Lab demonstrate the public extension path without game-specific core edits.
+Keep this low-level example for a small menu. For a reusable application use [MenuController, catalogue and resources](application-api.md), register your own components and skins explicitly, and test pure projections with dui-test. The companion Field Journal and Protocol Lab demonstrate the public extension path without game-specific core edits.

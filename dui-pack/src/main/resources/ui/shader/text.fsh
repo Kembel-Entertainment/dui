@@ -31,11 +31,12 @@ out vec4 fragColor;
 void main() {
 #ifdef IS_GUI
     if(playerFlags>=0){vec4 player=playerSkinPixel(Sampler0,playerPoint,playerSize,playerFlags,GameTime*1200.0);if(player.a<.1)discard;fragColor=player*ColorModulator;return;}
+
     if(focusGuard==1){
-        // Cover the native padded focus stroke. The centre remains fully transparent.
         if(guardPoint.x>=2.0&&guardPoint.y>=2.0&&guardPoint.x<guardSize.x-2.0&&guardPoint.y<guardSize.y-2.0)discard;
-        fragColor=vec4(22.0,23.0,29.0,255.0)/255.0*ColorModulator;return;
+        fragColor=vec4(vertexColor.rgb,1.0)*ColorModulator;return;
     }
+
 #endif
 #ifdef IS_GRAYSCALE
     vec4 texColor = texture(Sampler0, texCoord0).rrrr;
@@ -48,7 +49,11 @@ void main() {
 #else
     vec4 color = texColor * vertexColor * ColorModulator;
 #endif
+#ifdef IS_GUI
+    if (color.a < 0.01) {
+#else
     if (color.a < 0.1) {
+#endif
         discard;
     }
 

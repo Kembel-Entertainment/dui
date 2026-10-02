@@ -44,7 +44,7 @@ class LayoutUtilitiesTest {
     assertTrue(font.width(font.fit("AAAA", 1)) <= 1);
     assertTrue(font.wrap("AAAAAAAA", 20, 2).stream().allMatch(line -> font.width(line) <= 20));
     var c =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
                 "<dui-menu width='120' height='36'><dui-column>"
                     + "<dui-text height='18' label='AA' align='right'/>"
                     + "<dui-text height='18' width='fill' label='AA BB' wrap='true' max-lines='2'/>"
@@ -58,11 +58,11 @@ class LayoutUtilitiesTest {
   @Test
   void anchoredRelativeLengthsAdaptToTheirAllocatedParent() throws Exception {
     var c =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
                 "<dui-menu width='240' height='54'><dui-layer height='fill'><dui-button id='right'"
                     + " action='go' width='25%' height='18' anchor-x='right' x='6'"
-                    + " anchor-y='bottom' y='9'/><dui-rect x='6' y='0' width='fill-12' height='1'/>"
-                    + "</dui-layer></dui-menu>")
+                    + " anchor-y='bottom' y='9'/><dui-rect fill='#112233' x='6' y='0'"
+                    + " width='fill-12' height='1'/></dui-layer></dui-menu>")
             .render(Map.of());
     assertEquals(58, c.hits.getFirst().width());
     assertEquals(176, c.hits.getFirst().x());

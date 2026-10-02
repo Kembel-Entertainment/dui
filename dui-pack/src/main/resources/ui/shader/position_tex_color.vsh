@@ -41,9 +41,7 @@ flat out float burstAge;
 flat out int effectKind;
 flat out int effectFlags;
 flat out int effectCount;
-flat out uvec3 effectData[8];
-flat out uvec3 effectMotionA[2];
-flat out uvec2 effectMotionB[2];
+flat out uint effectWords[20];
 
 // PROTOCOL
 uint motionCells[48];
@@ -64,8 +62,7 @@ void main() {
     effectKind = 0;
     effectFlags = 0;
     effectCount = 0;
-    for(int i=0;i<8;i++)effectData[i]=uvec3(0u);
-    for(int i=0;i<2;i++){effectMotionA[i]=uvec3(0u);effectMotionB[i]=uvec2(0u);}
+    for(int i=0;i<20;i++)effectWords[i]=0u;
 
     // Oversized GUI items have their own 48 * GUI-scale square render target.
     // Read only our binary signature. Other menus, world textures and atlas blits pass through.
@@ -134,51 +131,17 @@ void main() {
         if(effectKind==5){uint a=0u,b=0u;for(int i=0;i<13;i++){vec3 rgb=step(threshold,texture(Sampler0,vec2(46.5/48.0,(7.5+float(i)*3.0)/48.0)).rgb);uint cell=uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u);if(i<10)a|=cell<<uint(i*3);else b|=cell<<uint((i-10)*3);}vec2 minPoint=itemOrigin+offset+vec2(int(a&1023u)-512,int((a>>10u)&1023u)-512);vec2 bounds=vec2(float((a>>20u)&511u),float(((a>>29u)&1u)|(b<<1u)));itemClip=vec4(minPoint,minPoint+bounds);}
         return;
     }
-    if(effectKind==2 || effectKind==3){
-        uint params=0u;
-        for(int i=0;i<6;i++){
-            vec3 rgb=step(threshold,texture(Sampler0,vec2(1.5/48.0,(7.5+float(i)*3.0)/48.0)).rgb);
-            params|=(uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u))<<uint(i*3);
-        }
-        float elapsed=mod(GameTime*24000.0-started+24000.0,24000.0);
-        float u=(params&(1u<<16u))!=0u?clamp(elapsed/max(1.0,float(params&127u)),0.0,1.0):1.0;
-        int preset=int((params>>7u)&3u);float distance=float((params>>9u)&127u);
-        float scale=1.0,angle=0.0;vec2 shift=vec2(0);
-        if(preset==0){float v=u-1.0;scale=1.0+2.70158*v*v*v+1.70158*v*v;shift.y=distance*pow(1.0-u,3.0);angle=-.18*(1.0-u);}
-        else if(preset==1){float pulse=sin(u*3.141593);scale=1.0+.10*pulse;angle=sin(u*18.84956)*.08*(1.0-u);shift.y=-distance*.18*pulse;}
-        else if(preset==2){float ease=1.0-pow(1.0-u,3.0);shift.y=-distance*ease;shift.x=distance*.16*ease;angle=-.24*ease;}
-        else {shift.x=distance*pow(1.0-u,3.0)*((params&(1u<<17u))!=0u?-1.0:1.0);}
-        if(effectKind==3){
-            uint a=0u,b=0u;
-            for(int i=0;i<13;i++){
-                vec3 rgb=step(threshold,texture(Sampler0,vec2(46.5/48.0,(7.5+float(i)*3.0)/48.0)).rgb);
-                uint cell=uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u);
-                if(i<10)a|=cell<<uint(i*3);else b|=cell<<uint((i-10)*3);
-            }
-            vec2 minPoint=itemOrigin+offset+vec2(int(a&1023u)-512,int((a>>10u)&1023u)-512);
-            vec2 dimensions=vec2(float((a>>20u)&511u),float(((a>>29u)&1u)|(b<<1u)));
-            itemClip=vec4(minPoint,minPoint+dimensions);
-        }
-        vec2 delta=(corner-.5)*size*scale;delta=mat2(cos(angle),sin(angle),-sin(angle),cos(angle))*delta;
-        clipPoint=itemOrigin+offset+vec2(size*.5)+delta+shift;
-        gl_Position=ProjMat*ModelViewMat*vec4(clipPoint,Position.z,1.0);
-        return;
-    }
-    if(effectKind==1 || effectKind==6 || effectKind==7){
-        effectCount=clamp(int(burstItem.x),0,8);
-        for(int i=0;i<8;i++){
-            if(i>=effectCount)break;
-            int cells=effectKind==7?72:effectKind==6?24:23;
-            for(int j=0;j<72;j++){if(j>=cells)break;
-                int index=i*cells+j;vec2 uv=(vec2(float(index%14),float(index/14))*3.0+vec2(4.5))/48.0;
-                vec3 rgb=step(threshold,texture(Sampler0,uv).rgb);uint cell=uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u);
-                if(effectKind==7&&j>=24){int k=j-24;if(k<30)effectMotionA[i][k/10]|=cell<<uint(k%10*3);else effectMotionB[i][(k-30)/10]|=cell<<uint((k-30)%10*3);continue;}
-                if(j<10)effectData[i].x|=cell<<uint(j*3);else if(j<20)effectData[i].y|=cell<<uint((j-10)*3);else effectData[i].z|=cell<<uint((j-20)*3);
-            }
+    if(effectKind==1 || effectKind==6){
+        effectCount=clamp(int(burstItem.x),0,DUI_CARRIER_EFFECTS);
+        for(int i=0;i<DUI_SHADER_CARRIER_BITS/3;i++){
+            vec2 uv=(vec2(float(i%14),float(i/14))*3.0+vec2(4.5))/48.0;
+            vec3 rgb=step(threshold,texture(Sampler0,uv).rgb);
+            uint cell=uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u);
+            effectWords[i/10]|=cell<<uint((i%10)*3);
         }
     }
     burstAge=mod(GameTime*24000.0-started+24000.0,24000.0)/20.0;
     burstPoint=corner*burstBounds;
-    vec2 canvasOrigin=itemOrigin+offset-((effectKind==1 || effectKind==6 || effectKind==7)?vec2(0.0):burstItem.xy);
+    vec2 canvasOrigin=itemOrigin+offset-((effectKind==1 || effectKind==6)?vec2(0.0):burstItem.xy);
     gl_Position=ProjMat*ModelViewMat*vec4(canvasOrigin+burstPoint,Position.z,1.0);
 }

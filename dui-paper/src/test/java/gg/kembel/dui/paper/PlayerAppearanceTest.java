@@ -16,7 +16,7 @@ class PlayerAppearanceTest {
     var alex = PlayerAppearance.skinResource("minecraft:entity/player/slim/alex", true, empty);
     assertFalse(alex.fallback());
     assertTrue(alex.slim());
-    var c = new Canvas(320, 180);
+    var c = new Canvas(320, 180, RenderEnvironment.plain(new GlyphFont(java.util.Map.of("?", 6))));
     c.playerModel("preview", "alex", 0, 0, 72, 108, 7, true, false);
     assertNotNull(NativePlayerModels.band(c.playerModels.getFirst(), alex, 11, false));
     assertThrows(IllegalArgumentException.class, () -> new PlayerAppearance(null, List.of()));
@@ -24,7 +24,8 @@ class PlayerAppearanceTest {
 
   @Test
   void missingAppearancesAreRejectedBeforeTransport() {
-    var canvas = new Canvas(320, 180);
+    var canvas =
+        new Canvas(320, 180, RenderEnvironment.plain(new GlyphFont(java.util.Map.of("?", 6))));
     canvas.playerModel("hero", "viewer", 0, 0, 72, 108, 0, true, false);
     assertThrows(IllegalArgumentException.class, () -> ViewModel.data(Map.of()).validate(canvas));
     var view =
@@ -39,8 +40,9 @@ class PlayerAppearanceTest {
 
   @Test
   void packCapabilityIsRequired() {
-    var old = new PackMetadata("26.2", "0.1.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6));
-    var c = new Canvas(320, 180);
+    var old =
+        TestMetadata.create("26.2", "0.2.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6));
+    var c = new Canvas(320, 180, RenderEnvironment.plain(new GlyphFont(java.util.Map.of("?", 6))));
     c.playerModel("hero", "viewer", 0, 0, 72, 108, 0, true, false);
     assertThrows(IllegalArgumentException.class, () -> old.validate(c));
   }

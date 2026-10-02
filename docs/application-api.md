@@ -5,12 +5,11 @@ Use these contracts for a new menu. Negative spacing, model wrappers and wire fi
 ## Dependencies and ownership
 
 ```groovy
-implementation 'gg.kembel.dui:dui-paper:0.1.0-SNAPSHOT'
-implementation 'gg.kembel.dui:dui-components:0.1.0-SNAPSHOT' // optional visuals and chrome
- testImplementation 'gg.kembel.dui:dui-test:0.1.0-SNAPSHOT'
+implementation 'gg.kembel.dui:dui-paper:0.2.0-SNAPSHOT'
+ testImplementation 'gg.kembel.dui:dui-test:0.2.0-SNAPSHOT'
 ```
 
-`dui-core` has no Paper or HTTP dependency. `dui-paper` manages callbacks, main-thread presentation and lifecycle. `dui-components` is optional, builds on public core primitives and contains no game rules. `dui-pack` is build tooling; keep it out of the application runtime. `dui-test` contains portable test helpers, without JUnit or Paper in its runtime contract.
+`dui-core` has no Paper or HTTP dependency. `dui-paper` manages callbacks, main-thread presentation and lifecycle. `dui-pack` is build tooling; keep it out of the application runtime. `dui-test` contains portable test helpers, without JUnit or Paper in its runtime contract.
 
 Permission checks, bets, balances, hidden cards, persistence, bot decisions, pack hosting and network policy remain application-owned. A disabled control is presentation, not authorization.
 
@@ -34,7 +33,7 @@ controller.refresh();
 
 The controller stores application state and projects it without I/O. A custom action invokes the consumer and then refreshes an active controller, issuing fresh revision-bound callbacks. Decoder `IllegalArgumentException` invokes the rejection policy; exceptions from business handlers propagate. Native exit closes before its action and therefore does not refresh.
 
-`present(MenuView, ActionHandler)` is the compatibility entry point for existing Canvas-based applications; its handler explicitly chooses whether to refresh. `onPresented(observer)` observes the completed presentation for diagnostics/application effects, keeping projection pure. `close()` ends the session. `tasks()` and `viewTasks()` delegate to the active session. Paper-facing operations run on the server main thread.
+`present(MenuView, ActionHandler)` is the direct entry point for Canvas-based applications; its handler explicitly chooses whether to refresh. `onPresented(observer)` observes the completed presentation for diagnostics/application effects, keeping projection pure. `close()` ends the session. `tasks()` and `viewTasks()` delegate to the active session. Paper-facing operations run on the server main thread.
 
 A consumer `MenuCatalogue<T>` stores immutable `Definition(id, aliases, templates, factory, validate)` entries. The generic factory field is consumer-owned; dui imposes no command framework. Resolve aliases with `find`, enumerate `templates`, and run `validate`. The demo registers each menu's preparation, dispatch, resources, validation and cleanup once, rather than maintaining separate lists.
 
@@ -64,30 +63,28 @@ Vanilla does not notify Paper of every Escape or screen replacement by another p
 
 `LayoutContext` provides injected glyph measurements and validated min/max constraints. Templates support relative layer dimensions (`fill`, `fill-27`, percentages), anchors, docking, cross alignment, min/max dimensions and grid spans (`column-span`, `row-span`). Hit y/height remain multiples of nine; decorative coordinates need not be. Text wrapping/ellipsis use pack metrics. Unsupported constraints and overflow fail rather than silently omitting required content.
 
-`CollectionView.of(entries, requestedPage, capacity, stableKey)` validates unique stable keys and returns a clamped `Page` plus keyed entries. Use IDs derived from those keys rather than list positions. `Carousel.window` supplies cyclic slots and entering slots for discrete arrow/card callbacks. `GridLayout.place` validates spans and overlap before drawing. `CardStrip.layout` computes card slots and reports insufficient capacity; callers deliberately page or allocate through `RenderBudget`.
+`CollectionView.of(entries, requestedPage, capacity, stableKey)` validates unique stable keys and returns a clamped `Page` plus keyed entries. Use IDs derived from those keys rather than list positions. `Carousel.window` supplies cyclic slots and entering slots for discrete arrow/card callbacks. `GridLayout.place` validates spans and overlap before drawing. `HorizontalStrip.layout` computes card slots and reports insufficient capacity; callers deliberately page or allocate through `RenderBudget`.
 
-Install reusable components with:
+Install consumer components and presentation explicitly:
 
 ```java
 var registry = ComponentRegistry.builder()
-    .include(VisualComponents.registry())
     .template("journal-row", Set.of("label"),
-        "<dui-fragment><dui-entry label=\"{{props.label}}\" height=\"18\"/></dui-fragment>")
+        "<dui-fragment><dui-text color=\"#FFFFFF\" label=\"{{props.label}}\" height=\"18\"/></dui-fragment>")
     .build();
-var template = ui.compile("journal.html", source, registry);
+var environment = RenderEnvironment.plain(metadata.font());
+var template = ui.compile("journal.html", source, registry, environment);
 ```
 
-Registries are immutable snapshots. Merge collisions fail. `dui-chrome-header` accepts `title` and `detail`; `dui-chrome-pagination` accepts `label`, `previous`, `next`, `previous-locked`, `next-locked` and sends payloads -1/+1. Its fixed hit IDs `previous`/`next` mean one instance per canvas. Use your own named fragment for multiple independently paged collections.
+Registries are immutable snapshots and merge collisions fail. Use `PropertySchema` for typed renderer/fragment defaults, ranges, enums, resources and colors. Content outlets compose consumer chrome without a library design package. See [extensions](extensions.md) for complete registrations, a custom control skin and shader/glyph contributions.
 
-`/dui acceptance compact` and `/dui acceptance spacious` demonstrate twelve journal entries, public chrome, pagination, a cached RGBA asset, token styling, typed actions and a controller without changes to dui.
+## Token styles and control skins
 
-## Token styles
+`ThemeTokens` copies caller-supplied RGB colors, nonnegative spacing and typography aliases. No keys or palette are required by core. Color properties accept `$accent` or `#RRGGBB`; spacing properties accept your named spacing tokens. Typography aliases select semantic text colors, not arbitrary CSS font sizes or downloaded fonts.
 
-`ThemeTokens` copies RGB colours, nonnegative spacing and typography aliases. Required colour keys: surface, raised, text, muted, accent, border, success, warning, danger, selected, disabled. Additional tokens need no enum edit. `DARK.with(overrides)` creates a palette; construct a pair with your own colours and pass it to `template.render(data, images, tokens)`.
+`RenderEnvironment` supplies font metrics, tokens, `WidgetSkinRegistry`, contributed glyph bindings and an optional color transform. Control behavior is library-owned; painting and named hit rectangles are supplied by the skin. Text can render with an explicit color without a skin. Buttons, checkboxes, toggles, choices, dropdowns and other styled controls require an installed caller skin. Skin properties have their own `PropertySchema` and can resolve color tokens. Do not hardcode application palette colors in a core shader.
 
-Colour properties accept `$accent` or `#RRGGBB`. Gap/padding accept `$small`, `$medium`, `$large` or custom spacing names. Typography aliases select semantic text colours through `tokens.type(name)`; glyph geometry and font choice remain owned by the generated pack. This API does not promise arbitrary CSS font sizes or downloaded fonts.
-
-Resolution order: widget semantic defaults → supplied theme → classes in declared order → class state properties → explicit node properties. State-prefixed properties use `disabled-`, `active-`, `selected-` for fill/border/color. Explicit `color` wins over a class's disabled colour. `UiTheme` and existing RGB defaults remain compatibility presets; token palettes provide extensible semantic defaults. Texture, raster and skin colours are not recoloured as UI tokens.
+Resolution order is caller skin defaults, declared classes, class state properties, then explicit node properties. Explicit color wins over a class state color. Runtime `template.render(data, images, tokens)` may override tokens. The optional color transform handles a consumer's legacy palette policy; textures and native model pixels keep their own color path.
 
 ## Scene and backend boundaries
 
@@ -99,7 +96,7 @@ Native clip rectangles are fixed canvas coordinates and mask transformed pixels.
 
 ## Motion and effect budgets
 
-`Motion` is one finite GPU contract shared by native models and procedural effects: translation to the destination, scale, rotation, opacity, pivot, duration, delay and four easing curves. `slide` and `pop` compose tracks. `still()` selects the final pose. `AnimationTimeline` composes phase timing; it does not schedule frames or implement game decisions.
+`Motion` is one finite GPU contract shared by native models and procedural effects: translation to the destination, scale, rotation, opacity, pivot, duration, delay and four easing curves. `slide` composes a horizontal track; consumer factories may build any supported track combination. `still()` selects the final pose. `AnimationTimeline` composes phase timing; it does not schedule frames or implement game decisions.
 
 ```xml
 <dui-menu width="300" height="90" animation-start="{{worldTick}}" motion="{{motion}}">
@@ -111,13 +108,13 @@ Native clip rectangles are fixed canvas coordinates and mask transformed pixels.
 </dui-menu>
 ```
 
-Optional `dui-visual-playing-card`, `dui-visual-chip-stack`, `dui-visual-wheel`, `dui-visual-reel`, `dui-visual-lever`, `dui-visual-particles`, `dui-visual-lights` support the same track attributes. Use `canvas.motion(itemId, motion)` or `effectMotion(effectId, motion)` for direct composition. Native models can use separate `motion-start`; tracked effects share the canvas animation start. Runtime images and profile portraits do not support these GPU tracks.
+Consumer procedural renderers can parse the same attributes with `Motion.from` and attach the result to their invocation. Use `canvas.motion(itemId, motion)` or `effectMotion(effectId, motion)` for direct composition. Native models can use separate `motion-start`; tracked effects share the canvas animation start. Runtime images and profile portraits do not support these GPU tracks.
 
-Bounds: translation and rotation -256..255; scale 0..255/64; opacity/pivot 0..1; duration 1..127 ticks; delay 0..127. Rotation uses degrees. Motion-off renders final transforms, not zero transforms. Preserve the original world tick through rerenders; the shader clock wraps at 24,000 ticks, so complete transient events first. Existing card flip/flight, staggered chip, wheel/ball and reel presets remain compatible visual behaviours; they can be composed with tracks rather than requiring a new shader per layout.
+Bounds: translation and rotation -256..255; scale 0..255/64; opacity/pivot 0..1; duration 1..127 ticks; delay 0..127. Rotation uses degrees. Motion-off renders final transforms, not zero transforms. Preserve the original world tick through rerenders; the shader clock wraps at 24,000 ticks, so complete transient events first. Card flips/flights, wheel/ball motion, reel art and particles are consumer shaders and parameters, composed with the generic tracks.
 
-Default budget remains eight effects. Explicit `effect-budget="16"` or `32` enables bounded batching with matching protocol-2 packs. EffectBatches preserves order and separates consecutive ordinary/tracked groups. Ordinary batches carry eight effects; tracked batches carry two, so larger budgets cost bodies and payloads. `RenderBudget` reserves required minimums and allocates remaining capacity in priority order. Report or page overflow. Do not transmit hidden card values just because their visible face is down.
+Default budget is eight invocations; an explicit `effect-budget` up to 32 opts into additional batches. `EffectBatches` preserves draw order and separates consecutive ordinary/tracked groups. Each batch has a 576-bit payload and at most eight calls. Actual capacity depends on the declared schema bit width and the 99-bit motion cost per tracked call, not a fixed preset count. More batches consume dialog bodies. `RenderBudget` reserves minimums and allocates remaining capacity in priority order. Reject or page overflow. Never transmit a hidden card value merely because its visible face is down.
 
-`NativeReel.draw` accepts arbitrary registered resource keys and returns carrier IDs to populate with real ItemStacks. Its viewport and vertical movement use the shared native motion contract. The legacy `symbols="arcade"` procedural preset retains its fixed six-symbol design; custom native symbols use NativeReel or a contributed effect, not an edit to the core parser.
+`NativeCarousel.draw` accepts arbitrary resource keys and returns carrier IDs to populate with real ItemStacks. Its viewport and movement use native clipping/Motion. Game-specific symbols and selection logic belong to the consumer.
 
 ## Resources and transparent images
 
@@ -125,14 +122,14 @@ Default budget remains eight effects. Explicit `effect-budget="16"` or `32` enab
 
 `CachedResourceProvider` shares retained in-flight futures by key and enforces entry/declared-weight limits before starting a loader. Eviction drops retention, not the original future; external services must separately bound simultaneous I/O, downloaded bytes, origins and redirects. Use versioned keys. `ImageKey` includes identity/version, dimensions, fit, sampling and actual background.
 
-`RgbaImage.decode(bytes)` preserves source alpha. `flatten(width,height, COVER|CONTAIN, NEAREST|BILINEAR, backgroundRGB)` explicitly composites alpha and letterboxing onto your real surface. RGB glyphs cannot carry per-pixel alpha. The old `RasterImage.decode(bytes)` keeps its documented dark-background compatibility behaviour; prefer the RGBA path or explicit-background decode for new applications.
+`RgbaImage.decode(bytes)` preserves source alpha; `raster(width,height,fit,sampling)` supplies an alpha-preserving RasterImage. Paper quantizes its alpha to 15 nonzero levels. `flatten(width,height, COVER|CONTAIN, NEAREST|BILINEAR, backgroundRGB)` explicitly composites alpha and letterboxing onto your real surface when an opaque result is desired. `RasterImage.decode(bytes, backgroundRGB)` requires an explicit background; there is no implicit dark palette. The original RGB constructor remains opaque; `RasterImage.argb(...)` opts into per-pixel alpha.
 
 Use nearest-neighbour scaling, contrast and a quiet zone for QR codes. Immutable RasterImages and fitted images use bounded retention. ViewModel clones ItemStacks both on input and when returning item maps; model/profile/glint data stays native, never an exhaustive sprite atlas. Generic handles can also hold application-owned item/portrait data; the Paper adapter resolves native heads and does not download arbitrary template URLs.
 
 ## Pack contributions and test helpers
 
-`PackContribution(owner, resources, effects)` supplies namespaced build-time assets and trusted GLSL effect functions. Codes 8..15 are available for extensions; IDs, codes, function names and asset paths must not collide. Functions receive local position/size, two bounded 15-bit parameters, time and motion flags, and return RGBA. Runtime templates cannot inject shader code. See DemoPackGenerator for `demo:pulse`, an actual GPU-tested consumer extension.
+`PackContribution` supplies namespaced resources, shader functions, shared GLSL modules, glyph PNGs, bitmap fonts, player render families, feature declarations and optional world-map definitions. GLSL is trusted build-time code; runtime templates cannot inject it. `ShaderSpec` declares names, kinds/ranges/quantization and up to 240 parameter bits. IDs are sorted to assign up to 64 codes; codes and schema fingerprints come from generated metadata, never a consumer-selected numerical opcode. Generated structs expose typed values to the function. See [extensions](extensions.md) and the independent `dui-demo/extension-proof` project.
 
-Pass contributions as the fourth argument to `PackGenerator.generate(clientJar, additions, output, contributions)`. Metadata declares extension IDs/codes and the generated codec hash. Compile consumer renderers through their registry, emitting `ShaderEffect.Extension`; missing capabilities fail before display. Adding textures/models/functions rebuilds the pack; new layouts and supported motion parameters do not.
+Pass contributions as the fourth argument to `PackGenerator.generate(clientJar, additions, output, contributions)`. Runtime `ShaderInvocation` references the registered logical ID and exact specification. Pack metadata checks the renderer/world-map protocol 4 codecs, capabilities and per-shader schema fingerprints before display. Glyph bindings are assigned from namespaced `GlyphSpec` inputs. Adding GLSL, static glyphs, models or map art requires rebuilding the pack; supported parameter/layout/frame changes do not.
 
 Portable test APIs live in `gg.kembel.dui.testing`: `FakeScheduler` (`advance`, `drain`, `pending`), `RenderAssertions` (hits/actions/budgets), and `MenuHarness` (pure projection plus typed action sequence). Test stale completion, close, min/max layouts, stable keys and overflow without Paper. Real-client tests are still required for GPU motion, clipping, model wrappers, popup visibility and actual mouse coordinates. A CPU preview cannot prove a shader works.

@@ -20,7 +20,7 @@ public final class ShaderItems {
 
   public static List<DialogBody> bodies(
       Canvas canvas, Map<String, ItemStack> stacks, Set<String> models, boolean motionTracks) {
-    return bodies(canvas, stacks, models, motionTracks, Map.of());
+    return bodies(canvas, stacks, models, motionTracks, Map.of(), Map.of());
   }
 
   public static List<DialogBody> bodies(
@@ -28,7 +28,8 @@ public final class ShaderItems {
       Map<String, ItemStack> stacks,
       Set<String> models,
       boolean motionTracks,
-      Map<String, PlayerAppearance> appearances) {
+      Map<String, PlayerAppearance> appearances,
+      Map<String, ShaderBinding> shaders) {
     canvas = canvas.renderPlan();
     var batches = EffectBatches.of(canvas);
     var renderItems = new ArrayList<Canvas.Item>(canvas.items);
@@ -90,21 +91,16 @@ public final class ShaderItems {
         throw new IllegalArgumentException("No native model wrapper registered for " + original);
       meta.setItemModel(
           new NamespacedKey("dui", "live/" + original.getNamespace() + "/" + original.getKey()));
-      boolean confetti = canvas.confetti != null && canvas.confetti.itemId().equals(item.id());
-      var motion = motionTracks ? canvas.motions.get(item.id()) : null;
-      var transition = motion == null ? canvas.transitions.get(item.id()) : null;
+      var motion = canvas.motions.get(item.id());
       boolean clipped = canvas.clips.containsKey(item.id());
-      if (clipped && transition == null && motion == null)
-        transition = new ItemTransition(ItemTransition.Kind.SLIDE, 0, 1, 0, false);
-      if (transition != null && (confetti || animation))
-        throw new IllegalArgumentException(
-            "Item transition must have its own carrier: " + item.id());
+      if (clipped && motion == null)
+        motion = new Motion(0, 1, 0, Motion.Easing.LINEAR, false, 0, 0, 1, 1, 0, 0, 1, 1, .5, .5);
       var cmd = meta.getCustomModelDataComponent();
       var colors = new ArrayList<>(cmd.getColors());
       while (colors.size()
           < ItemTransport.DATA_INDEX
               + ItemTransport.NATIVE_CELLS
-              + (animation ? ShaderEffect.LIMIT * 24 : 0)) colors.add(Color.BLACK);
+              + (animation ? ShaderInvocation.LIMIT * 24 : 0)) colors.add(Color.BLACK);
       // FocusableTextWidget: 4px padding. Text width = canvas.width+2.
       // Each following item body occupies 1px plus the vanilla 10px gap.
       int flags =
@@ -119,26 +115,16 @@ public final class ShaderItems {
                   item.x() - canvas.width / 2,
                   item.y() - canvas.height - 14 - (i + 1) * 11,
                   flags,
-                  confetti
-                      || animation
-                      || transition != null
-                      || motion != null
-                      || armorCarrier != null));
-      if (confetti)
-        payload.addAll(
-            ItemTransport.confettiPayload(
-                canvas.confetti.startedAt(), canvas.width, canvas.height, item.x(), item.y()));
-      if (transition != null)
-        payload.addAll(ItemTransport.transitionPayload(canvas, item, transition));
+                  animation || motion != null || armorCarrier != null));
       if (motion != null) payload.addAll(ItemTransport.motionPayload(canvas, item, motion));
       if (animation) {
         int batch = Integer.parseInt(item.id().substring(item.id().lastIndexOf('/') + 1));
-        payload.addAll(ItemTransport.animationPayload(canvas, batches.get(batch)));
+        payload.addAll(ItemTransport.animationPayload(canvas, batches.get(batch), shaders));
       }
       if (armorCarrier != null) {
         var model = armorCarrier.model();
-        payload.addAll(ItemTransport.confettiPayload(0, model.width(), model.height(), 0, 0));
-        int code = armorCarrier.flags();
+        payload.addAll(ItemTransport.headerPayload(0, model.width(), model.height(), 0, 0));
+        int code = armorCarrier.flags() | (model.rendererCode() << 10);
         for (int j = 0; j < 6; j++) {
           int bits = (code >> (j * 3)) & 7;
           payload.add(

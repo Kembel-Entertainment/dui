@@ -1,6 +1,6 @@
 # Component composition and UI work
 
-These APIs are implemented foundation features. See [application APIs](application-api.md) for the implemented controller, scene, resource and renderer layers. Existing MenuTemplate.parse and DialogSession.update calls continue to work. No resource-pack regeneration is required for a component that only emits existing primitives.
+These APIs are implemented foundation features. See [application APIs](application-api.md) for the implemented controller, scene, resource and renderer layers. Compile with an explicit RenderEnvironment; DialogSession.update replaces the view. No resource-pack regeneration is required for a component that only emits existing primitives.
 
 ## Local template components
 
@@ -47,7 +47,7 @@ var registry = ComponentRegistry.builder()
     })
     .build();
 
-var template = dui.compile("ui/example.html", source, registry);
+var template = dui.compile("ui/example.html", source, registry, environment);
 ```
 
 Use dui-acme-title or dui-acme-status in a template. Custom renderer properties are declared by that renderer; template component properties are required at each invocation. A custom renderer receives absolute allocated bounds, its node, image resources, child drawing and deferred overlays. Honour bounds, hit-row rules, unique IDs and resource limits exactly as when using Canvas directly. Custom renderers are caller-owned code; dui's expansion limits do not sandbox arbitrary Java renderer work. Keep renderers stateless or externally thread-confined.
@@ -61,19 +61,19 @@ An external fragment or local definition can contain dui-outlet name="footer". F
 ```xml
 <dui-component name="acme-box" props="title">
   <dui-column>
-    <dui-text label="{{props.title}}" />
+    <dui-text label="{{props.title}}" color="#FFFFFF" />
     <dui-outlet name="footer" />
   </dui-column>
 </dui-component>
 
 <dui-acme-box title="Overview">
   <dui-content name="footer">
-    <dui-text label="{{footerText}}" />
+    <dui-text label="{{footerText}}" color="#FFFFFF" />
   </dui-content>
 </dui-acme-box>
 ```
 
-Content bindings use the caller's data. Component properties use props. A referenced named outlet must be supplied; duplicates are rejected. Local style IDs are scoped to their component; literal class names resolve to those local styles. Parent styles remain available for intentional shared classes. Dynamic local style export and optional/default property declarations are not implemented.
+Content bindings use the caller's data. Component properties use props. A referenced named outlet must be supplied; duplicates are rejected. Local style IDs are scoped to their component; literal class names resolve to those local styles. Parent styles remain available for intentional shared classes. Dynamic local style export is not implemented. Java registrations can declare typed optional/default properties through PropertySchema; local XML props declarations remain required names.
 
 ## Relative positioned geometry and text
 
@@ -132,10 +132,12 @@ IDs are unique across a plan. Segments expose start, duration and end; delayed p
 
 ## Compatibility and verification
 
-The migration now uses versioned protocol 2, generated codecs, native/effect Motion tracks and bounded effect batches. Existing low-level APIs and legacy aliases remain available. See [application APIs](application-api.md) and [compatibility](compatibility.md) for exact contracts and fixed-backend scene limits.
+The renderer uses protocol 4, generated codecs, typed shader specifications, native/effect Motion and schema-aware bounded batches. This WIP release removes domain presets and old transport aliases. See [application APIs](application-api.md) and [compatibility](compatibility.md) for exact contracts and fixed-backend scene limits.
 
 Unit tests cover custom registry schemas, immutable snapshots, recursive fragments, literal/typed bindings, caller content, local styles, relative bounds, font metrics, pagination, resource minimums, timing and stale jobs. The companion demo uses the same APIs and retains its gameplay tests and muted real-client scenarios.
 
 ## Combining component packages
 
-Use `ComponentRegistry.builder().include(existingRegistry)` before adding consumer templates or renderers. Duplicate names fail immediately; each compiled template keeps an immutable snapshot. Install the optional `VisualComponents.registry()` for `dui-visual-*` and `dui-chrome-*` components.
+Use `ComponentRegistry.builder().include(existingRegistry)` before adding consumer templates or renderers. Duplicate names fail immediately; each compiled template keeps an immutable snapshot. Include your own component package for domain visuals and chrome. Core registers only design-neutral primitives.
+
+The environment supplies every control skin, palette and glyph binding. Domain components compose these primitives in their consumer. See [extensions](extensions.md); no preset component package is installed by dui.

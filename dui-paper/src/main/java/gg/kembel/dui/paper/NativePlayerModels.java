@@ -32,7 +32,9 @@ public final class NativePlayerModels {
         .color(
             TextColor.color(
                 PlayerModelCodec.color(
-                    PlayerModelCodec.flags(model, appearance.slim(), motion), band)))
+                    PlayerModelCodec.flags(model, appearance.slim(), motion),
+                    band,
+                    model.rendererCode())))
         .shadowColor(ShadowColor.shadowColor(0));
   }
 }

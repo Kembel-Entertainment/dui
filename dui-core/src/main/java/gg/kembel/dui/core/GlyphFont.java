@@ -5,21 +5,22 @@ import java.util.*;
 public final class GlyphFont {
   private final Map<Integer, Integer> widths = new HashMap<>();
 
-  /** Small ASCII fallback for standalone layouts. Production uses the generated pack metrics. */
-  public GlyphFont() {
-    for (int cp = 32; cp < 127; cp++) widths.put(cp, 6);
-    " \"()*I[]t{}".codePoints().forEach(cp -> widths.put(cp, 4));
-    "!',.:;i|".codePoints().forEach(cp -> widths.put(cp, 2));
-    "<>fk".codePoints().forEach(cp -> widths.put(cp, 5));
-    "@~".codePoints().forEach(cp -> widths.put(cp, 7));
-    "`l".codePoints().forEach(cp -> widths.put(cp, 3));
+  public GlyphFont(Map<String, Integer> metrics) {
+    this(metrics, 32);
   }
 
-  public GlyphFont(Map<String, Integer> metrics) {
+  public static GlyphFont from(BitmapFont font) {
+    var metrics = new HashMap<String, Integer>();
+    font.glyphs().forEach((key, value) -> metrics.put(key, value.advance()));
+    return new GlyphFont(metrics, 128);
+  }
+
+  private GlyphFont(Map<String, Integer> metrics, int maximum) {
     metrics.forEach(
         (character, advance) -> {
-          if (character.codePointCount(0, character.length()) != 1 || advance < 0 || advance > 32)
-            throw new IllegalArgumentException("Invalid font metric");
+          if (character.codePointCount(0, character.length()) != 1
+              || advance < 0
+              || advance > maximum) throw new IllegalArgumentException("Invalid font metric");
           widths.put(character.codePointAt(0), advance);
         });
     if (!widths.containsKey((int) '?'))

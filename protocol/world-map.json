@@ -1,0 +1,20 @@
+{
+  "version": 4,
+  "dynamicStampColor": 214,
+  "worldColor": 211,
+  "hudColor": 210,
+  "maxZoom": 31,
+  "maxLayers": 128,
+  "maxMaps": 64,
+  "cornerBase": 128,
+  "openingModulo": 160,
+  "openingOffset": 64,
+  "hudStampColor": 212,
+  "hudMaskStampColor": 213,
+  "hudPenStride": 1024,
+  "hudPenBias": 512,
+  "hudOpacitySteps": 256,
+  "hudMaxOffsetY": 360,
+  "hudVirtualWidth": 480,
+  "hudVirtualHeight": 360
+}

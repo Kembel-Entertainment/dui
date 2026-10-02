@@ -52,7 +52,9 @@ public final class ComponentSchemas {
           "active-color",
           "highlight",
           "bevel",
-          "padding");
+          "padding",
+          "padding-x",
+          "padding-y");
   private static final Map<String, Schema> ALL = build();
 
   private ComponentSchemas() {}
@@ -76,12 +78,12 @@ public final class ComponentSchemas {
     put(
         map,
         "menu",
-        "gap padding theme compact compact-width compact-height focus-outline motion"
-            + " animation-start effect-budget",
+        "gap padding background focus-outline-color compact compact-width compact-height"
+            + " focus-outline motion animation-start effect-budget",
         "Canvas 120..480 by 9..360; height multiple of nine",
         "canvas",
         "font/native/effects");
-    for (String tag : List.of("row", "column", "panel", "card", "layer"))
+    for (String tag : List.of("row", "column", "panel", "layer"))
       put(
           map,
           tag,
@@ -98,32 +100,27 @@ public final class ComponentSchemas {
         "1..16 columns; spanning cells cannot overlap",
         "paints/hits",
         "font");
+    put(
+        map,
+        "icon",
+        "name tone",
+        "Contributed glyph dimensions 1..32 by 1..18; caller tint policy",
+        "paints",
+        "font");
     for (String tag : List.of("heading", "text"))
       put(
           map,
           tag,
-          "label align wrap max-lines tone",
+          "label align wrap max-lines tone font",
           "Injected font metrics; bounded wrapping and ellipsis",
           "paints",
           "font");
-    for (String tag :
-        List.of(
-            "nav",
-            "toggle",
-            "checkbox",
-            "button",
-            "choice",
-            "tab",
-            "badge",
-            "progress",
-            "stat",
-            "empty",
-            "entry"))
+    for (String tag : List.of("toggle", "checkbox", "button", "choice", "tab", "badge", "progress"))
       put(
           map,
           tag,
-          "label detail value max checked active locked icon action payload tooltip tone player"
-              + " hat",
+          "label detail value max checked active locked icon action payload tooltip"
+              + " previous-tooltip next-tooltip tone player hat",
           "Nine-pixel hit rows; application authorizes actions",
           "paints/hits",
           "font");
@@ -131,8 +128,16 @@ public final class ComponentSchemas {
       put(map, tag, "tone", "Positive bounded geometry", "paints", "font");
     put(
         map,
+        "group",
+        "gap padding translate-x translate-y scale-x scale-y rotate opacity clip-x clip-y"
+            + " clip-width clip-height",
+        "Bounded affine raster composition; hit/native capabilities checked",
+        "raster/native/hits",
+        "group");
+    put(
+        map,
         "dropdown",
-        "label value open locked action select dismiss tooltip",
+        "label value open locked action select dismiss tooltip dismiss-tooltip",
         "1..8 distinct options; popup must fit above or below",
         "paints/hits/coverage",
         "font/occlusion");
@@ -143,23 +148,14 @@ public final class ComponentSchemas {
         "Distinct nonempty value",
         "none",
         "structural");
-    put(map, "tree", "action tooltip", "Bounded canvas tree", "paints/hits", "font");
-    put(
-        map,
-        "node",
-        "label detail value icon parent rank max limit status shape active locked action payload"
-            + " tooltip tone",
-        "Unique identity; valid parent references",
-        "paints/hits",
-        "font");
     put(
         map,
         "player-model",
-        "source facing outer-layer idle",
-        "Full-body GPU skin and vanilla armor; source is an appearance key; facing 0..7; contained"
-            + " in 48x72, 72x108, 108x162 or 144x216",
+        "source facing outer-layer idle renderer",
+        "Full-body GPU skin and vanilla armor; source is an appearance key; registered renderer"
+            + " selects up to four viewports/eight poses",
         "player model / nine-pixel skin bands / up to four armor carriers",
-        "player-model-v1");
+        "player-model-v2");
     put(
         map,
         "head",
@@ -167,13 +163,6 @@ public final class ComponentSchemas {
         "Native 8x8 profile; nine-pixel rows",
         "one portrait",
         "head");
-    put(
-        map,
-        "slot",
-        "label value icon count durability enchanted action payload tooltip locked active tone",
-        "Visual slot; count and durability ranges are validated",
-        "paints/hits",
-        "font");
     put(
         map,
         "hitbox",
@@ -191,62 +180,10 @@ public final class ComponentSchemas {
     put(
         map,
         "item",
-        "size transition transition-start transition-duration transition-distance clip-x clip-y"
-            + " clip-width clip-height burst-start "
-            + String.join(" ", Motion.ATTRIBUTES),
+        "size clip-x clip-y" + " clip-width clip-height " + String.join(" ", Motion.ATTRIBUTES),
         "Size 1..127; clip offsets -512..511; motion bounded by protocol",
         "one native body (11 GUI units)",
         "native/model/clip/motion");
-    put(
-        map,
-        "wheel",
-        "value previous turns duration animation variant palette action payload tooltip locked",
-        "European wheel; square >=96; value 0..36",
-        "one effect",
-        "shader");
-    put(
-        map,
-        "playing-card",
-        "value face-down active delay animation palette duration lift card-height action payload"
-            + " tooltip locked",
-        "Card -1..51; even delay 0..62; bounded visual modes",
-        "one effect",
-        "shader");
-    put(
-        map,
-        "chip-stack",
-        "count delay animation palette from to duration action payload tooltip locked",
-        "Count 0..31; even delay 0..126; visual anchors only",
-        "one effect",
-        "shader");
-    put(
-        map,
-        "reel",
-        "symbols sequence value previous turns duration symbol-size action payload tooltip locked",
-        "Six symbols; bounded duration; symbol resources are build-time",
-        "one effect",
-        "shader");
-    put(
-        map,
-        "lever",
-        "duration action payload tooltip locked",
-        "Duration 1..127",
-        "one effect",
-        "shader");
-    put(
-        map,
-        "particles",
-        "effect count origin-x origin-y delay action payload tooltip locked",
-        "Coins/confetti; count 0..63; even delay",
-        "one effect",
-        "shader");
-    put(
-        map,
-        "lights",
-        "count radius action payload tooltip locked",
-        "Count 1..32; radius 1..15",
-        "one effect",
-        "shader");
     put(
         map,
         "repeat",
@@ -286,10 +223,9 @@ public final class ComponentSchemas {
           Map.of("source", "viewer", "facing", "0", "outer-layer", "true", "idle", "true"));
     if (name.equals("layer")) defaults.put("cover", "false");
     if (name.equals("menu")) {
-      defaults.put("width", "440");
-      defaults.put("height", "306");
+      defaults.put("background", "none");
       defaults.put("effect-budget", "8");
-      defaults.put("focus-outline", "hidden");
+      defaults.put("focus-outline", "native");
     }
     map.put(name, new Schema(name, set, defaults, constraints, cost, backend));
   }

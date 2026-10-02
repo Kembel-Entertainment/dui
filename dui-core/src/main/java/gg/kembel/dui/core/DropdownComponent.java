@@ -7,10 +7,17 @@ public final class DropdownComponent {
   private DropdownComponent() {}
 
   public static void draw(
-      Canvas c, MenuTemplate.Node n, int x, int y, int w, int h, List<Runnable> overlays) {
+      Canvas c,
+      MenuTemplate.Node n,
+      int x,
+      int y,
+      int w,
+      int h,
+      List<Runnable> overlays,
+      WidgetSkinRegistry.Skin skin) {
     String id = n.s("id", ""), value = n.s("value", "");
-    if (id.isBlank() || h < 18 || w < 45)
-      throw new IllegalArgumentException("Dropdown needs an id and at least 45x18 pixels");
+    if (id.isBlank())
+      throw new IllegalArgumentException("Dropdown needs an id and positive dimensions");
     var values = new HashSet<String>();
     if (n.children().isEmpty() || n.children().size() > 8)
       throw new IllegalArgumentException("Dropdown needs 1..8 options");
@@ -24,22 +31,28 @@ public final class DropdownComponent {
             .filter(o -> o.s("value", "").equals(value))
             .map(o -> o.s("label", value))
             .findFirst()
-            .orElse(n.s("label", "Select an option"));
+            .orElse(n.s("label", ""));
     boolean locked = n.b("locked"), open = n.b("open") && !locked;
-    c.panel(x, y, w, h - 1, locked ? 0x202127 : 0x292B35, open ? 0x58E6DB : 0x34343F);
-    int ty = y + (h - 9) / 2;
-    c.text(x + 6, ty, w - 30, label, locked ? 0x9697A5 : 0xEAEAF1);
-    c.text(x + w - 17, ty, 12, open ? "^" : "v", locked ? 0x9697A5 : 0x58E6DB);
+    var fieldProps = new HashMap<>(n.props());
+    fieldProps.put("label", label);
+    skin.painter()
+        .draw(
+            new ComponentContext(
+                c,
+                new MenuTemplate.Node("dropdown", fieldProps, n.children()),
+                x,
+                y,
+                w,
+                h,
+                Map.of(),
+                (child, cx, cy, cw, ch) -> {
+                  throw new IllegalArgumentException("Dropdown skin cannot add child layouts");
+                },
+                overlays::add),
+            "field");
     var header =
         new Canvas.Hit(
-            id,
-            locked ? "" : n.s("action", ""),
-            "",
-            n.s("tooltip", n.s("label", "Select an option")),
-            x,
-            y,
-            w,
-            h);
+            id, locked ? "" : n.s("action", ""), "", n.s("tooltip", n.s("label", "")), x, y, w, h);
     if (!open) {
       c.hit(header);
       return;
@@ -47,7 +60,7 @@ public final class DropdownComponent {
     String dismiss = n.s("dismiss", ""), select = n.s("select", "");
     if (dismiss.isBlank() || select.isBlank())
       throw new IllegalArgumentException("Open dropdown needs select and dismiss actions");
-    int popupHeight = n.children().size() * 18;
+    int popupHeight = n.children().size() * skin.optionHeight();
     int top = y + h + popupHeight <= c.height ? y + h : y - popupHeight;
     if (top < 0)
       throw new IllegalArgumentException("Dropdown popup does not fit above or below its field");
@@ -58,22 +71,46 @@ public final class DropdownComponent {
             c.cover(id + "_popup", x, top, w, popupHeight);
             c.hit(
                 new Canvas.Hit(
-                    id + "_dismiss", dismiss, "", "Close options", 0, 0, c.width, c.height));
+                    id + "_dismiss",
+                    dismiss,
+                    "",
+                    n.s("dismiss-tooltip", ""),
+                    0,
+                    0,
+                    c.width,
+                    c.height));
             c.hit(header);
-            c.panel(x, top, w, popupHeight, 0x22232B, 0x58E6DB);
+            skin.painter()
+                .draw(
+                    new ComponentContext(
+                        c,
+                        n,
+                        x,
+                        top,
+                        w,
+                        popupHeight,
+                        Map.of(),
+                        (child, cx, cy, cw, ch) -> {},
+                        overlays::add),
+                    "popup");
             for (int i = 0; i < n.children().size(); i++) {
               var option = n.children().get(i);
-              int oy = top + i * 18;
-              boolean selected = option.s("value", "").equals(value);
-              if (selected) c.rect(x + 1, oy + 1, w - 2, 16, 0x24504C);
-              c.text(
-                  x + 7,
-                  oy + 4,
-                  w - 30,
-                  option.s("label", option.s("value", "")),
-                  option.b("locked") ? 0x9697A5 : selected ? 0x58E6DB : 0xEAEAF1);
-              if (selected) c.icon(x + w - 17, oy + 4, "check", 0x58E6DB);
-              if (option.b("locked")) c.icon(x + w - 17, oy + 4, "lock", 0x9697A5);
+              int oy = top + i * skin.optionHeight();
+              var props = new HashMap<>(option.props());
+              props.put("selected", Boolean.toString(option.s("value", "").equals(value)));
+              skin.painter()
+                  .draw(
+                      new ComponentContext(
+                          c,
+                          new MenuTemplate.Node("dropdown", props, List.of()),
+                          x,
+                          oy,
+                          w,
+                          skin.optionHeight(),
+                          Map.of(),
+                          (child, cx, cy, cw, ch) -> {},
+                          overlays::add),
+                      "option");
               c.hit(
                   new Canvas.Hit(
                       id + "_option_" + i,
@@ -83,7 +120,7 @@ public final class DropdownComponent {
                       x,
                       oy,
                       w,
-                      18));
+                      skin.optionHeight()));
             }
           } finally {
             c.style(previous);

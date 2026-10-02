@@ -7,71 +7,63 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 
 class ProtocolCompatibilityTest {
+  private static final Set<String> CAPS =
+      Set.of("native", "shader-components-v1", "clips", "motion-tracks", "effects-32");
+
   @Test
-  void legacyIsExplicitAndCannotClaimModernFeatures() {
-    var old =
-        new PackMetadata(
-            "26.2", "0.1.0-SNAPSHOT", "0".repeat(40), Set.of(), new GlyphFont().metrics());
-    assertEquals(1, old.protocolVersion());
-    var c = new Canvas(180, 90);
-    c.item("a", 0, 0, 16);
-    c.motion("a", Motion.pop(1, 24, 18, true));
-    assertThrows(IllegalArgumentException.class, () -> old.validate(c));
+  void rejectsOldAndMismatchedPacks() {
+    for (int version : List.of(1, 2))
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              new PackMetadata(
+                  "26.2",
+                  "0.2.0-SNAPSHOT",
+                  "a".repeat(40),
+                  Set.of(),
+                  Map.of("?", 6),
+                  version,
+                  CAPS,
+                  RendererProtocol.SCHEMA_SHA256));
     assertThrows(
         IllegalArgumentException.class,
         () ->
             new PackMetadata(
                 "26.2",
-                "0.1.0-SNAPSHOT",
-                "0".repeat(40),
+                "0.2.0-SNAPSHOT",
+                "a".repeat(40),
                 Set.of(),
-                new GlyphFont().metrics(),
-                1,
-                Set.of("motion-tracks"),
-                ""));
-  }
-
-  @Test
-  void legacyPresetTransitionsRetainTheirFallbackTransport() throws Exception {
-    var old =
-        new PackMetadata(
-            "26.2", "0.1.0-SNAPSHOT", "0".repeat(40), Set.of(), new GlyphFont().metrics());
-    var c =
-        MenuTemplate.parse(
-                "<dui-menu width='180' height='90'><dui-layer height='fill'><dui-item id='old'"
-                    + " size='18' height='18' transition='pop'"
-                    + " transition-start='10'/></dui-layer></dui-menu>")
-            .render(Map.of());
-    assertTrue(c.legacyMotion("old"));
-    assertDoesNotThrow(() -> old.validate(c));
-  }
-
-  @Test
-  void v2RequiresMatchingSchemaAndCapabilities() {
-    var caps = Set.of("native", "effects-8", "clips", "motion-tracks", "effects-32");
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new PackMetadata(
-                "26.2",
-                "0.1.0-SNAPSHOT",
-                "0".repeat(40),
-                Set.of(),
-                new GlyphFont().metrics(),
-                2,
-                caps,
+                Map.of("?", 6),
+                3,
+                CAPS,
                 "wrong"));
-    var modern =
+  }
+
+  @Test
+  void rejectsUnknownOrMismatchedShaderSchemas() {
+    var spec = new ShaderSpec("acme:rect", List.of(ShaderSpec.Parameter.rgb("tint")));
+    var registry = ShaderRegistry.bind(List.of(spec));
+    var metadata =
         new PackMetadata(
             "26.2",
-            "0.1.0-SNAPSHOT",
-            "0".repeat(40),
+            "0.2.0-SNAPSHOT",
+            "a".repeat(40),
             Set.of(),
-            new GlyphFont().metrics(),
-            2,
-            caps,
-            RendererProtocol.SCHEMA_SHA256);
-    assertEquals(2, modern.protocolVersion());
-    assertTrue(modern.supports("motion-tracks"));
+            Map.of("?", 6),
+            RendererProtocol.VERSION,
+            CAPS,
+            RendererProtocol.SCHEMA_SHA256,
+            Map.of(),
+            Map.of(),
+            registry,
+            Map.of());
+    var c = TestEnvironment.canvas(180, 90);
+    c.effect(new ShaderInvocation("a", spec, 0, 0, 18, 18, Map.of("tint", 0xFF0011), 0));
+    assertDoesNotThrow(() -> metadata.validate(c));
+    var other = TestEnvironment.canvas(180, 90);
+    other.effect(
+        new ShaderInvocation(
+            "b", new ShaderSpec("acme:rect", List.of()), 0, 0, 18, 18, Map.of(), 0));
+    assertThrows(IllegalArgumentException.class, () -> metadata.validate(other));
   }
 }

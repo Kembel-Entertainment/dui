@@ -7,6 +7,18 @@ import org.junit.jupiter.api.Test;
 
 class CallbackRegistryTest {
   @Test
+  void removedFrameActionDoesNotInvalidateUnchangedSibling() {
+    var r = new CallbackRegistry<String>();
+    var p = UUID.randomUUID();
+    var removed = r.register(p, "old");
+    var stable = r.register(p, "stable");
+    r.invalidate(p, removed);
+    assertNull(r.consume(p, removed));
+    assertEquals("stable", r.consume(p, stable));
+    assertNull(r.consume(p, stable));
+  }
+
+  @Test
   void foreignPlayersReplayAndSiblingTokensCannotAct() {
     var registry = new CallbackRegistry<String>();
     var a = UUID.randomUUID();

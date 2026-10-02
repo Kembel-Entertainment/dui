@@ -10,6 +10,7 @@ import javax.imageio.ImageIO;
 public final class RasterImage {
   public final int width, height;
   private final int[] rgb;
+  private final boolean alpha;
 
   public RasterImage(int width, int height, int[] rgb) {
     if (width < 1 || height < 1 || width > 512 || height > 512 || rgb.length != width * height)
@@ -17,16 +18,41 @@ public final class RasterImage {
     this.width = width;
     this.height = height;
     this.rgb = rgb.clone();
-    for (int i = 0; i < this.rgb.length; i++) this.rgb[i] &= 0xFFFFFF;
+    this.alpha = false;
+    for (int i = 0; i < this.rgb.length; i++) this.rgb[i] = 0xff000000 | (this.rgb[i] & 0xFFFFFF);
   }
 
-  public int rgb(int x, int y) {
+  private RasterImage(int width, int height, int[] argb, boolean alpha) {
+    if (width < 1
+        || height < 1
+        || width > 512
+        || height > 512
+        || argb.length != (long) width * height)
+      throw new IllegalArgumentException("Invalid raster dimensions");
+    this.width = width;
+    this.height = height;
+    this.rgb = argb.clone();
+    this.alpha = alpha;
+  }
+
+  public static RasterImage argb(int width, int height, int[] pixels) {
+    return new RasterImage(width, height, pixels, true);
+  }
+
+  public boolean hasAlpha() {
+    return alpha;
+  }
+
+  public int argb(int x, int y) {
     return rgb[y * width + x];
   }
 
-  /** Legacy dark-background decoding. Prefer the overload with an explicit background. */
-  public static RasterImage decode(byte[] bytes) throws IOException {
-    return decode(bytes, 0x16171D);
+  public int[] pixels() {
+    return rgb.clone();
+  }
+
+  public int rgb(int x, int y) {
+    return rgb[y * width + x] & 0xffffff;
   }
 
   public static RasterImage decode(byte[] bytes, int background) throws IOException {
@@ -54,27 +80,12 @@ public final class RasterImage {
     }
   }
 
-  private static RasterImage from(BufferedImage source, int w, int h) {
-    var image = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
-    var g = image.createGraphics();
-    try {
-      g.setColor(new Color(0x16171D));
-      g.fillRect(0, 0, w, h);
-      g.setRenderingHint(
-          RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-      g.drawImage(source, 0, 0, w, h, null);
-    } finally {
-      g.dispose();
-    }
-    return new RasterImage(w, h, image.getRGB(0, 0, w, h, null, 0, w));
-  }
-
   public RasterImage cover(int w, int h) {
     if (w < 1 || h < 1 || w > 512 || h > 512)
       throw new IllegalArgumentException("Invalid image target");
-    var source = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+    var source = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
     source.setRGB(0, 0, width, height, rgb, 0, width);
-    var target = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+    var target = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
     var g = target.createGraphics();
     try {
       double scale = Math.max((double) w / width, (double) h / height);
@@ -85,6 +96,8 @@ public final class RasterImage {
     } finally {
       g.dispose();
     }
-    return new RasterImage(w, h, target.getRGB(0, 0, w, h, null, 0, w));
+    return alpha
+        ? RasterImage.argb(w, h, target.getRGB(0, 0, w, h, null, 0, w))
+        : new RasterImage(w, h, target.getRGB(0, 0, w, h, null, 0, w));
   }
 }

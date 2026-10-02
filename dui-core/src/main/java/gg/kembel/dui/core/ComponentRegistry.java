@@ -11,7 +11,28 @@ public final class ComponentRegistry {
     void draw(ComponentContext context);
   }
 
-  record Definition(Set<String> attributes, int height, Renderer renderer, String template) {
+  @FunctionalInterface
+  public interface Measurer {
+    Measure.Size measure(Measure.Context context);
+  }
+
+  record Definition(
+      Set<String> attributes,
+      int height,
+      Renderer renderer,
+      String template,
+      PropertySchema schema,
+      Measurer measurer,
+      ComponentContract contract) {
+    Definition(
+        Set<String> attributes,
+        int height,
+        Renderer renderer,
+        String template,
+        PropertySchema schema) {
+      this(attributes, height, renderer, template, schema, null, ComponentContract.scalar(schema));
+    }
+
     Definition {
       attributes = Set.copyOf(attributes);
     }
@@ -25,6 +46,39 @@ public final class ComponentRegistry {
 
   Map<String, Definition> definitions() {
     return definitions;
+  }
+
+  /** Exportable public contracts for consumer documentation and editor/LLM tooling. */
+  public Map<String, ComponentContract> contracts() {
+    var result = new TreeMap<String, ComponentContract>();
+    definitions.forEach((id, definition) -> result.put(id, definition.contract()));
+    return Collections.unmodifiableMap(result);
+  }
+
+  public Map<String, Object> describe() {
+    var result = new TreeMap<String, Object>();
+    contracts()
+        .forEach(
+            (id, contract) -> {
+              var values = new TreeMap<String, Object>();
+              contract
+                  .values()
+                  .forEach(
+                      (name, value) ->
+                          values.put(
+                              name,
+                              Map.of(
+                                  "type",
+                                  value.codec().description(),
+                                  "required",
+                                  value.required(),
+                                  "default",
+                                  value.defaultValue() == null
+                                      ? "<absent>"
+                                      : value.defaultValue())));
+              result.put(id, Map.of("scalars", contract.scalars().properties(), "values", values));
+            });
+    return Collections.unmodifiableMap(result);
   }
 
   public static Builder builder() {
@@ -42,7 +96,14 @@ public final class ComponentRegistry {
 
     /** Source must contain one dui-fragment root and one visual root inside it. */
     public Builder template(String name, Set<String> properties, String source) {
-      return add(name, new Definition(properties, 18, null, Objects.requireNonNull(source)));
+      return add(
+          name,
+          new Definition(
+              properties,
+              18,
+              null,
+              Objects.requireNonNull(source),
+              PropertySchema.strings(properties, true)));
     }
 
     /** The renderer composes existing Canvas primitives; it does not register a GPU opcode. */
@@ -51,12 +112,53 @@ public final class ComponentRegistry {
       if (naturalHeight < 1 || naturalHeight > 360)
         throw new IllegalArgumentException("Component height must be 1..360");
       return add(
-          name, new Definition(attributes, naturalHeight, Objects.requireNonNull(renderer), null));
+          name,
+          new Definition(
+              attributes,
+              naturalHeight,
+              Objects.requireNonNull(renderer),
+              null,
+              PropertySchema.strings(attributes, false)));
+    }
+
+    public Builder renderer(String name, PropertySchema schema, int height, Renderer renderer) {
+      if (height < 1 || height > 360) throw new IllegalArgumentException("Component height");
+      return add(
+          name,
+          new Definition(
+              schema.properties().keySet(),
+              height,
+              Objects.requireNonNull(renderer),
+              null,
+              schema));
+    }
+
+    public Builder template(String name, PropertySchema schema, String source) {
+      return add(
+          name,
+          new Definition(
+              schema.properties().keySet(), 18, null, Objects.requireNonNull(source), schema));
+    }
+
+    /** Intrinsic size and allocation are separate; renderer receives final bounds. */
+    public Builder renderer(
+        String name, ComponentContract contract, Measurer measurer, Renderer renderer) {
+      return add(
+          name,
+          new Definition(
+              contract.attributes(),
+              18,
+              Objects.requireNonNull(renderer),
+              null,
+              contract.scalars(),
+              Objects.requireNonNull(measurer),
+              contract));
     }
 
     private Builder add(String name, Definition definition) {
       if (!name.matches("[a-z][a-z0-9]*(?:-[a-z0-9]+)+"))
-        throw new IllegalArgumentException("Use an owner-prefixed component name, e.g. acme-card");
+        throw new IllegalArgumentException(
+            "Use an owner-prefixed component name, e.g. acme-widget");
       for (String attribute : definition.attributes())
         if (!attribute.matches("[a-z][a-z0-9-]*")
             || attribute.equals("name")

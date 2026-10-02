@@ -24,7 +24,35 @@ public final class Canvas {
       int height,
       int facing,
       boolean outerLayer,
-      boolean idle) {}
+      boolean idle,
+      String renderer,
+      int rendererCode,
+      int viewportIndex) {
+    public PlayerModel(
+        String id,
+        String source,
+        int x,
+        int y,
+        int width,
+        int height,
+        int facing,
+        boolean outerLayer,
+        boolean idle) {
+      this(
+          id,
+          source,
+          x,
+          y,
+          width,
+          height,
+          facing,
+          outerLayer,
+          idle,
+          "dui:player",
+          0,
+          PlayerRenderSpec.standard().fit(width, height));
+    }
+  }
 
   public record Item(String id, int x, int y, int size) {}
 
@@ -43,8 +71,6 @@ public final class Canvas {
     }
   }
 
-  public record Confetti(String itemId, long startedAt) {}
-
   public record Animation(String itemId, long startedAt, boolean motion, int durationTicks) {}
 
   public record Hit(
@@ -59,6 +85,11 @@ public final class Canvas {
   final Map<Object, Placement> placements = new IdentityHashMap<>();
   private Placement placement = new Placement("canvas", 0, 0);
   private int nodeSequence;
+  private final List<Object> drawOrder = new ArrayList<>();
+
+  public List<Object> drawOrder() {
+    return List.copyOf(drawOrder);
+  }
 
   public Placement enter(String id, int x, int y) {
     var previous = placement;
@@ -73,6 +104,7 @@ public final class Canvas {
 
   private <T> T record(T primitive) {
     placements.put(primitive, placement);
+    drawOrder.add(primitive);
     return primitive;
   }
 
@@ -83,24 +115,31 @@ public final class Canvas {
   public final List<Item> items = new ArrayList<>();
   public final List<Image> images = new ArrayList<>();
   public final List<Hit> hits = new ArrayList<>();
-  public final Map<String, ItemTransition> transitions = new LinkedHashMap<>();
   public final Map<String, ItemClip> clips = new LinkedHashMap<>();
   public boolean motionEnabled = true;
   public long animationStart = 0;
-  public Confetti confetti;
   public Animation animation;
-  public boolean hideFocusOutline = true;
-  public final List<ShaderEffect> effects = new ArrayList<>();
+  public boolean hideFocusOutline = false;
+  public int focusOutlineColor;
+  public final List<ShaderInvocation> effects = new ArrayList<>();
+  public final List<RenderPrimitive> primitives = new ArrayList<>();
+
+  public void primitive(RenderPrimitive primitive) {
+    var rect = primitive.bounds();
+    bounds(rect.x(), rect.y(), rect.width(), rect.height());
+    if (primitives.size() >= 32 || primitives.stream().anyMatch(p -> p.id().equals(primitive.id())))
+      throw new IllegalArgumentException("Extension primitive capacity/id collision");
+    primitives.add(record(primitive));
+  }
 
   private record FitKey(RasterImage source, int width, int height) {}
 
   private static final BoundedCache<FitKey, RasterImage> FITTED =
       new BoundedCache<>(128, 2_000_000L, i -> (long) i.width * i.height);
   private final GlyphFont metrics;
-  private final UiTheme theme;
-  private ThemeTokens tokens;
+  private final RenderEnvironment environment;
   private Map<String, String> style = Map.of();
-  public int effectLimit = ShaderEffect.LIMIT;
+  public int effectLimit = ShaderInvocation.LIMIT;
   public final List<Scene.Coverage> coverage = new ArrayList<>();
   public final Map<String, Motion> effectMotions = new LinkedHashMap<>();
 
@@ -113,12 +152,15 @@ public final class Canvas {
   public final Map<String, Motion> motions = new LinkedHashMap<>();
 
   public Canvas(int width, int height, ThemeTokens tokens, GlyphFont metrics) {
-    this(width, height, UiTheme.DEFAULT, metrics);
-    this.tokens = Objects.requireNonNull(tokens);
+    this(width, height, RenderEnvironment.plain(metrics).withTokens(tokens));
   }
 
   public ThemeTokens tokens() {
-    return tokens == null ? ThemeTokens.DARK : tokens;
+    return environment.tokens();
+  }
+
+  public RenderEnvironment environment() {
+    return environment;
   }
 
   public Map<String, String> style(Map<String, String> value) {
@@ -144,18 +186,6 @@ public final class Canvas {
     return Scene.of(this).plan(this);
   }
 
-  public boolean legacyMotion(String id) {
-    var t = transitions.get(id);
-    if (t == null) return false;
-    Motion expected =
-        t.kind() == ItemTransition.Kind.POP
-            ? Motion.pop(t.startedAt(), t.durationTicks(), t.distance(), t.motion())
-            : t.kind() == ItemTransition.Kind.SLIDE
-                ? Motion.slide(t.startedAt(), t.durationTicks(), t.distance(), t.motion())
-                : null;
-    return expected != null && expected.equals(motions.get(id));
-  }
-
   public void motion(String id, Motion motion) {
     if (items.stream().noneMatch(i -> i.id().equals(id))
         || motions.putIfAbsent(id, Objects.requireNonNull(motion)) != null)
@@ -165,28 +195,28 @@ public final class Canvas {
   private int styled(int color, boolean text) {
     String override = text ? style.get("color") : null;
     if (override != null) return StyleResolver.color(override, tokens());
-    return tokens == null ? theme.color(color) : tokens.semantic(color);
-  }
-
-  public Canvas(int width, int height) {
-    this(width, height, UiTheme.DEFAULT);
-  }
-
-  public Canvas(int width, int height, UiTheme theme) {
-    this(width, height, theme, new GlyphFont());
+    return environment.colorTransform().apply(Map.of(), tokens()).applyAsInt(color);
   }
 
   public GlyphFont metrics() {
+    if (style.containsKey("font"))
+      return GlyphFont.from(RichText.require(environment.fonts(), style.get("font")));
     return metrics;
   }
 
-  public Canvas(int width, int height, UiTheme theme, GlyphFont metrics) {
-    this.metrics = Objects.requireNonNull(metrics);
+  public int textLineHeight() {
+    return style.containsKey("font")
+        ? RichText.require(environment.fonts(), style.get("font")).lineHeight()
+        : 9;
+  }
+
+  public Canvas(int width, int height, RenderEnvironment environment) {
+    this.environment = Objects.requireNonNull(environment);
+    this.metrics = environment.font();
     if (width < 120 || width > 480 || height < 9 || height > 360 || height % 9 != 0)
       throw new IllegalArgumentException("Canvas bounds / 9 px grid");
     this.width = width;
     this.height = height;
-    this.theme = Objects.requireNonNull(theme);
   }
 
   public void rect(int x, int y, int w, int h, int color) {
@@ -204,6 +234,19 @@ public final class Canvas {
   }
 
   public void text(int x, int y, int w, String text, int color) {
+    if (style.containsKey("font")) {
+      var face = RichText.require(environment.fonts(), style.get("font"));
+      String fitted = text;
+      while (face.width(fitted) > w && !fitted.isEmpty())
+        fitted = fitted.substring(0, fitted.offsetByCodePoints(fitted.length(), -1));
+      if (!fitted.isEmpty())
+        text(
+            x,
+            y,
+            w,
+            new RichText(List.of(new RichText.Span(fitted, face.id(), styled(color, true), 1))));
+      return;
+    }
     String fitted = metrics.fit(text, w);
     if (metrics.width(fitted) > w) return;
     bounds(x, y, metrics.width(fitted), 9);
@@ -212,20 +255,101 @@ public final class Canvas {
   }
 
   public void icon(int x, int y, String name, int color) {
-    if (name.startsWith("item/") && y % 9 != 0)
-      throw new IllegalArgumentException("Item sprites must use 9 px rows");
-    int size = name.startsWith("item/") ? 18 : 9;
-    bounds(x, y, size, size);
+    var binding = GlyphRegistry.require(environment.glyphs(), name);
+    int size = binding.specification().width(), height = binding.specification().height();
+    bounds(x, y, size, height);
     paints.add(
         record(
             new Paint(
                 x,
                 y,
                 size,
-                size,
-                name.startsWith("item/") ? color : styled(color, true),
+                height,
+                binding.specification().tintable() ? styled(color, true) : 0xFFFFFF,
                 null,
                 name)));
+  }
+
+  public void text(int x, int y, int width, RichText text) {
+    int cursor = x;
+    var size = text.measure(environment.fonts());
+    bounds(x, y, Math.min(width, size.width()), size.height());
+    for (var span : text.spans()) {
+      var face = RichText.require(environment.fonts(), span.font());
+      if (span.text().isEmpty()) continue;
+      var raster = face.raster(span.text(), span.color());
+      int visible = Math.min(raster.width, x + width - cursor);
+      if (visible <= 0) break;
+      int[] pixels = new int[visible * raster.height];
+      for (int yy = 0; yy < raster.height; yy++)
+        for (int xx = 0; xx < visible; xx++) {
+          int pixel = raster.argb(xx, yy);
+          pixels[yy * visible + xx] =
+              ((int) Math.round((pixel >>> 24) * span.opacity()) << 24) | (pixel & 0xffffff);
+        }
+      image(
+          "text_" + (nodeSequence++),
+          cursor,
+          y,
+          visible,
+          raster.height,
+          1,
+          RasterImage.argb(visible, raster.height, pixels));
+      cursor += raster.width;
+    }
+  }
+
+  /** Atomic composition: failure never leaves a half-painted parent canvas. */
+  public void group(String id, SceneGroup options, java.util.function.Consumer<Canvas> children) {
+    if (id == null || id.isBlank()) throw new IllegalArgumentException("Group id required");
+    var child = new Canvas(width, height, environment);
+    child.motionEnabled = motionEnabled;
+    child.animationStart = animationStart;
+    child.effectLimit = effectLimit;
+    children.accept(child);
+    var result = GroupComposer.compose(id, child, options);
+    var ids = new HashSet<String>();
+    for (var i : items) ids.add(i.id());
+    for (var i : result.items)
+      if (!ids.add(i.id())) throw new IllegalArgumentException("Group item collision: " + i.id());
+    ids.clear();
+    for (var i : hits) ids.add(i.id());
+    for (var i : result.hits)
+      if (!ids.add(i.id())) throw new IllegalArgumentException("Group hit collision: " + i.id());
+    ids.clear();
+    for (var i : effects) ids.add(i.id());
+    for (var i : result.effects)
+      if (!ids.add(i.id())) throw new IllegalArgumentException("Group effect collision: " + i.id());
+    if (effects.size() + result.effects.size() > effectLimit
+        || images.stream().mapToInt(i -> i.raster().width * i.raster().height).sum()
+                + result.images.stream().mapToInt(i -> i.raster().width * i.raster().height).sum()
+            > RenderReport.IMAGE_PIXEL_LIMIT)
+      throw new IllegalArgumentException("Group exceeds canvas budget");
+    ids.clear();
+    for (var i : primitives) ids.add(i.id());
+    for (var i : result.primitives)
+      if (!ids.add(i.id())) throw new IllegalArgumentException("Group primitive collision");
+    ids.clear();
+    for (var i : playerModels) ids.add(i.id());
+    for (var i : result.playerModels)
+      if (!ids.add(i.id())) throw new IllegalArgumentException("Group player model collision");
+    if (primitives.size() + result.primitives.size() > 32)
+      throw new IllegalArgumentException("Group extension budget");
+    var previous = enter(id, 0, 0);
+    try {
+      for (var image : result.images) images.add(record(image));
+      for (var item : result.items) items.add(record(item));
+      for (var effect : result.effects) effects.add(record(effect));
+      for (var head : result.heads) heads.add(record(head));
+      for (var model : result.playerModels) playerModels.add(record(model));
+      for (var hit : result.hits) hits.add(record(hit));
+      for (var primitive : result.primitives) primitives.add(record(primitive));
+      clips.putAll(result.clips);
+      motions.putAll(result.motions);
+      effectMotions.putAll(result.effectMotions);
+    } finally {
+      leave(previous);
+    }
   }
 
   public void hit(Hit hit) {
@@ -255,12 +379,30 @@ public final class Canvas {
       int facing,
       boolean outerLayer,
       boolean idle) {
+    playerModel(id, source, x, y, w, h, "dui:player", facing, outerLayer, idle);
+  }
+
+  public void playerModel(
+      String id,
+      String source,
+      int x,
+      int y,
+      int w,
+      int h,
+      String renderer,
+      int facing,
+      boolean outerLayer,
+      boolean idle) {
+    var binding =
+        Objects.requireNonNull(
+            environment.playerRenderers().get(renderer),
+            "Unregistered player renderer: " + renderer);
     if (id == null
         || id.isBlank()
         || source == null
         || source.isBlank()
         || facing < 0
-        || facing > 7
+        || facing >= binding.specification().poses().size()
         || y % 9 != 0
         || h % 9 != 0)
       throw new IllegalArgumentException(
@@ -268,15 +410,28 @@ public final class Canvas {
     bounds(x, y, w, h);
     if (playerModels.stream().anyMatch(p -> p.id().equals(id)))
       throw new IllegalArgumentException("Duplicate player model id: " + id);
-    int height = PlayerModelCodec.height(Math.min(h, w * 3 / 2)), width = height * 2 / 3;
+    int viewport = binding.specification().fit(w, h);
+    var dimensions = binding.specification().viewports().get(viewport);
+    int height = dimensions.height(), width = dimensions.width();
     int top = y + ((h - height) / 18) * 9;
     playerModels.add(
         record(
             new PlayerModel(
-                id, source, x + (w - width) / 2, top, width, height, facing, outerLayer, idle)));
+                id,
+                source,
+                x + (w - width) / 2,
+                top,
+                width,
+                height,
+                facing,
+                outerLayer,
+                idle,
+                renderer,
+                binding.code(),
+                viewport)));
   }
 
-  public void effect(ShaderEffect effect) {
+  public void effect(ShaderInvocation effect) {
     bounds(effect.x(), effect.y(), effect.width(), effect.height());
     if (effects.size() >= effectLimit)
       throw new IllegalArgumentException(
@@ -306,30 +461,6 @@ public final class Canvas {
       clips.put(id, clip);
     }
     items.add(record(new Item(id, x, y, size)));
-  }
-
-  public void transition(String id, ItemTransition transition) {
-    if (items.stream().noneMatch(i -> i.id().equals(id)) || transitions.containsKey(id))
-      throw new IllegalArgumentException("Transition needs a unique existing item: " + id);
-    if (confetti != null && confetti.itemId().equals(id))
-      throw new IllegalArgumentException("Use a separate particles carrier with item transitions");
-    transitions.put(id, Objects.requireNonNull(transition));
-    if (transition.kind() == ItemTransition.Kind.POP)
-      motions.put(
-          id,
-          Motion.pop(
-              transition.startedAt(),
-              transition.durationTicks(),
-              transition.distance(),
-              transition.motion()));
-    if (transition.kind() == ItemTransition.Kind.SLIDE)
-      motions.put(
-          id,
-          Motion.slide(
-              transition.startedAt(),
-              transition.durationTicks(),
-              transition.distance(),
-              transition.motion()));
   }
 
   public void image(String id, int x, int y, int w, int h, int pixelSize, RasterImage raster) {

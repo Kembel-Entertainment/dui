@@ -1,8 +1,6 @@
-> This document includes the retained legacy wire paths. The current generated transport is protocol 2; read the versioned section below before changing fields. Application developers should use [public APIs](application-api.md), not encode these payloads themselves.
-
 # How dui renders a canvas
 
-This document explains the current **dui 0.1.0-SNAPSHOT / Minecraft 26.2** rendering protocol. Supply it to a coding agent that needs to understand or extend the renderer. For application plugins, use [the public API guide](llm-guide.md) and [quickstart](quickstart.md). The glyph addresses, shader payload and native-widget offsets below are implementation details of this version.
+This document explains the current **dui 0.2.0-SNAPSHOT / Minecraft 26.2** rendering protocol. Supply it to a coding agent that needs to understand or extend the renderer. For application plugins, use [the public API guide](llm-guide.md) and [quickstart](quickstart.md). The glyph addresses, shader payload and native-widget offsets below are implementation details of this version.
 
 ## From template to client
 
@@ -98,7 +96,7 @@ Each chunk starts with a shift to its x coordinate, then draws and rewinds. The 
 
 Text starting exactly on a band uses `dui:text`. For offsets 1–8, `ShiftedText` generates `dui:text_<offset>_0` and `_1`. It splits the original glyph ink into upper and lower 9-pixel bands while preserving each character's advance. The renderer paints those parts on their respective lines. A simple ascent shift would allow ink to cross line boundaries, where the next line's background could cover it. The split avoids that problem.
 
-Small built-in icons use a similar band split and a fixed advance of 10. The optional `icon="item/..."` font path uses a finite registry of vanilla texture references with measured advances for two halves. It is separate from the real native ItemStack path described below.
+Consumer glyphs use the same band idea. GlyphSpec defines dimensions and tint policy; the pack assigns addresses and generates offset/band images. Their advance is width+1, maintained by a nearly transparent sizing marker. There is no built-in icon/item sprite registry. Native ItemStacks use the separate model path below.
 
 ## Why hit regions are emitted first
 
@@ -109,7 +107,7 @@ Each line is emitted in this order:
 1. Walk x from 0 to `canvas.width + 2`. At each position, sample `canvas.at(x, rowY + 4)` and merge consecutive positions with the same hit. Emit an invisible positive-advance span for each segment. Apply that hit's hover event and, when its action is nonempty, its click event.
 2. Rewind by `-(canvas.width + 2)` to return to x=0.
 3. On the first line, emit the optional focus marker and rewind its advance.
-4. Draw intersecting paints in insertion order, then runtime image cells, then head objects. Each placement returns the pen to zero.
+4. Draw background runtime images, then intersecting paints in insertion order, then foreground runtime images, head objects and full-body model bands. Each placement returns the pen to zero. Native item/effect carriers follow the text canvas.
 5. Advance to `canvas.width + 2` and append a newline unless this is the last line.
 
 The final positive advance gives the line enough intrinsic width for intermediate glyph positions, including bitmap glyphs' extra pixel. `Dui` supplies a plain-message wrap budget of `canvas.width + 12`, which accounts for the native widget's layout. These constants belong to the pinned 26.2 transport; changing them needs a real-client check.
@@ -127,7 +125,7 @@ Custom click events carry a random token, not raw mouse coordinates. `Dui` binds
 
 ## Runtime images, portraits and real items
 
-**Images and QR codes** are server-supplied `RasterImage` values. The renderer samples them into 1–8-pixel cells, merges same-colour horizontal runs and paints RGB-tinted rectangle glyphs. Each rectangle's extra advance is cancelled with `shift(-1)`; the row then rewinds its full width. Image runs draw after ordinary paints, so put labels outside their bounds. The component transmits colour/geometry; the thumbnail is not added to the pack and the client does not fetch its image URL. There is a 16,384-sampled-pixel budget per canvas.
+**Images and QR codes** are server-supplied `RasterImage` values. The renderer samples them into 1–8-pixel cells, merges same-colour horizontal runs and paints RGB-tinted rectangle glyphs. Each rectangle's extra advance is cancelled with `shift(-1)`; the row then rewinds its full width. Background images draw before ordinary paints; foreground images draw after them. Set `background="none"` on a menu with a full-surface background image, or its root rectangle will cover that image. Place labels outside foreground image bounds. The component transmits colour/geometry; the thumbnail is not added to the pack and the client does not fetch its image URL. There is a 16,384-sampled-pixel budget per canvas.
 
 **Player portraits** use native Adventure player-head object components, positioned with `shift(x)` and rewound by `-(x+8)`. Minecraft renders the profile/skin; dui does not generate a skin image in the pack. A large 3D head uses a native ItemStack instead.
 
@@ -140,15 +138,15 @@ Placement data is encoded in CustomModelData colour entries beginning at index 3
 | 0–10 | `dx + 1024` |
 | 11–21 | `dy + 1024` |
 | 22–28 | Native item size, or effect-carrier flags |
-| 29 | Additional confetti/effect/transition data is present |
+| 29 | Additional motion/shader/clip data is present |
 
 The consumer-facing item rectangle stays in canvas coordinates. For item index `i` starting at zero, the adapter currently encodes `dx = item.x - canvas.width/2` and `dy = item.y - canvas.height - 14 - (i+1)*11`. These offsets compensate the native bodies' position, padding and gaps. Reserve CustomModelData colour entries 32 and above for this transport; earlier entries are retained. A transparent layer-fence body is inserted before the item bodies because vanilla orders GUI draws using their original bounds, before the shader relocates them.
 
-Moving a visible native item does not move its vanilla widget's hit area. The text canvas still owns interaction. A direct `dui-item` is visual only; use an actionable `dui-slot` or a separate canvas control hit when an item needs clicks. Shader effects also use a shared carrier with encoded bounds and typed parameters. They animate from client `GameTime` and the supplied world-tick start; frame-by-frame packets and menu-specific shader files are unnecessary. The server remains responsible for game results, balances and timing rules.
+Moving a visible native item does not move its vanilla widget's hit area. The text canvas still owns interaction. A direct `dui-item` is visual only; compose a consumer slot component or a separate hitbox when an item needs clicks. Shader effects also use a shared carrier with encoded bounds and typed parameters. They animate from client `GameTime` and the supplied world-tick start; frame-by-frame packets and menu-specific shader files are unnecessary. The server remains responsible for game results, balances and timing rules.
 
 ## Focus outline and pack dependencies
 
-The first line's `U+ECF0` glyph uses `dui:focus_guard`. Its colour carries `width | (height << 9)`; its 9-pixel advance is immediately rewound. The text shader recognizes its tagged pixels and expands that glyph into a padded perimeter mask. It paints the outer stroke in the fixed colour `#16171D` and discards the centre. This masks dui's native focus border; it does not globally remove all Minecraft widget borders. `focus-outline="native"` omits the marker.
+`focus-outline` defaults to native. With hidden, the caller supplies a mask color (or explicit solid background). A supplementary-PUA glyph encodes the declared canvas size in its texture corners. The text shader expands it only over the native padded stroke, keeping runtime vertex RGB; its nine-unit advance is rewound. The technical padding is pinned to the native widget, while RGB is caller-owned. This cover does not transparently erase every Minecraft border. Core shaders contain no menu palette.
 
 Fonts supply horizontal advances, vertical slices and raster primitives. Item wrappers and shared shaders supply native model placement, effects and the focus mask. Applications share this pack and change their templates/data; they do not generate a custom font or shader for each dialog. New pack assets or transport changes require regenerating the ZIP and deploying its matching `dui.json`, which supplies its hash, font advances and model registry.
 
@@ -167,55 +165,26 @@ If rendering drifts horizontally, trace the pen and check every glyph's measured
 
 For an LLM task, supply this file together with the LLM guide and the relevant source files from the table. Ask it to preserve the pen-reset invariant, hit-first ordering, band clipping and pack/runtime agreement rather than inventing CSS positioning or a browser renderer.
 
-## Native transition transport
+## Version-four typed shader ABI
 
-The extended 18-cell header has start tick (15 bits), canvas width/height (9 each), origin x/y (9 each) and transport kind (3 bits). Kind 0 is legacy native confetti, 1 is the shared effect panel, 2 transforms a native quad and 3 adds a fixed viewport to that native quad. Native paths retain their normal texture crop. Off-canvas clipped native origins are clamped in the legacy header's informational origin fields; their actual placement still comes from the base offsets.
+`protocol/renderer.json` generates the Java/GLSL constants. Renderer version 4 and its SHA-256 must match metadata. Old effect/preset ordinal paths are removed. Technical native placement signatures/body offsets remain part of the pinned platform backend.
 
-Kinds 2/3 read six left-edge RGB cells, outside the native crop. Their 18 bits encode duration (0–6), preset ordinal `POP=0`, `BOUNCE=1`, `LIFT=2`, `SLIDE=3` (7–8), distance magnitude (9–15), motion flag (16), and negative-distance flag (17). SLIDE eases from `finalX + signedDistance` to `finalX` without scaling or rotating.
+The extended header has start (15 bits), canvas width/height (9 each), origin x/y (9 each), mode (3 bits). Procedural modes are untracked 1 and tracked 6. Modes 4/5 carry generic native motion, with 5 including a fixed viewport. All share the existing three-bits-per-RGB-cell transport in CustomModelData colors from index 32 onward.
 
-Kind 3 reads thirteen right-edge cells (38 data bits): clip X minus final item X +512 (0–9), clip Y minus final item Y +512 (10–19), width (20–28), height (29–37). The vertex stage supplies interpolated GUI coordinates after transformation and the fixed viewport; the fragment stage discards native pixels outside it. This works for static clipped items as well: the adapter supplies a motion-disabled zero-distance SLIDE when no transition is requested. Hits are unaffected. Clipped items must use a separate carrier for confetti/shared effects.
+Each shader invocation has six-bit pack-assigned code, x/y/width/height (nine bits each), then ordered typed fields from ShaderSpec. A scalar uses at most 30 bits; total schema <=240. The generated decoder uses a cross-word reader, so fields may span 30-bit uint words. No schema is restricted to the former two 15-bit demo parameters. Hashes cover ordered names, kinds, bounds, steps and enum choices.
 
-Native model wrappers supply **47 custom colour cells**, replacing the previous 34; regenerate the pack together with the adapter. The shared panel's component stream still starts at payload index 28; the new edge cells do not shift its existing encoding. CustomModelData indices 32 and higher remain reserved.
+A tracked invocation adds the 99-bit motion payload. EffectBatches measures actual cost, preserves insertion order and separates tracked/untracked calls; a carrier holds <=576 bits and <=8 calls. Eight calls per canvas is the default logical budget; explicit budgets may reach 32. A larger schema can therefore require more carriers. RenderReport exposes actual carrier/body cost.
 
-Each transition reads client game time independently. It scales, rotates and translates the already-rendered original model; it does not replace the item with a PNG. The shared panel's component kinds are reel 1, lever 2, coins 3, lights 4 and confetti 5. Confetti shares the bounded count/origin/even-delay parameters with coins, using a 72-tick burst lifetime after delay.
+Generated functions receive local q, size, typed p, age-seconds t and live. They return straight-alpha RGBA. Generic motion inversely transforms q and multiplies opacity; composition preserves alpha. Consumers own visual policies and finite lifetimes. Shared helper modules are trusted build inputs emitted before functions. See extensions.md for a complete independent schema/code example.
 
-The transported clock wraps every 24,000 world ticks. A consumer must finish transient events before that wrap: remove the effect or render its final pose with motion false after the event, guard any scheduled completion with the active session and a generation token, and cancel on explicit close. Preserve start ticks through unrelated updates. The Advent demo demonstrates this with one reveal update and one finite-effect cleanup, never a per-frame packet loop.
+## Generic finite motion and clipping
 
-## Runtime image layering and procedural cards
+Motion has startedAt/duration/delay/easing/enabled, signed translation, scale/rotation/opacity endpoints and pivot. Duration/delay 1..127/0..127 ticks; translation/rotation -256..255; scale 0..255/64 with 1/64 encoding; opacity/pivot 0..1 with 1/255 encoding. Easing is linear/ease-out/ease-in-out/back-out. No pop/bounce/lift design is built into the transport.
 
-`Canvas.Image.background()` defaults to false, including the previous seven-argument constructor. `canvas.image(..., raster, true)` or `image-layer="background"` emits RGB glyphs before normal paints; foreground rasters emit afterwards. Both retain the same centre crop and 16,384-sample budget. This lets a consumer overlay labels and controls on its own illustration without a per-menu resource-pack asset.
+The shader uses world-time modulo 24000; finish/remove transient events before wrap and use a world-tick start, not wall time. Motion-off chooses final generic poses and calls contributed visuals with live=false. Native clips are fixed canvas-space viewports applied after transforms. Hits remain at application destination geometry.
 
-The shared effect transport also contains `PLAYING_CARD=6` and `CHIP_STACK=7`. The unchanged component layout is kind3/x9/y9/width9/height9/parameter0_15/parameter1_15 (69 bits, 23 RGB cells). Card parameter0: value bits0–5 (63 means unknown), faceDown bit6, active bit7, even-delay/2 bits8–12, animation bits13–14 (static0/deal1/flip2/fly3). Parameter1: duration bits0–6, lift (or fly card-height) bits7–12, back palette bits13–14. Chip parameter0: count bits0–4, palette bits5–6, source anchor bits7–9, destination bits10–12. Parameter1: duration bits0–6, mode bits7–8 (static0/transfer1), even-delay/2 bits9–14. Anchor codes are top-left0/top-right1/bottom-left2/bottom-right3/top4/bottom5/left6/right7. Cards/chips are procedural GLSL; there is no atlas of 52 pre-rendered faces. Source lives in `dui-pack/src/main/resources/ui/shader/effects.glsl`.
+Scene planning suppresses whole intersecting earlier late-backend objects under dropdown coverage without mutating the source. It does not provide arbitrary cross-backend painter ordering. Runtime images can be background/foreground rasters. ARGB rasters preserve alpha using 15 nonzero alpha levels; callers may instead explicitly flatten onto their surface color. SceneGroup samples a common transform for supported visual backends and grid-aligned hits; standalone GPU Motion still leaves hits at application destination geometry.
 
-## Single-zero wheel preset and invisible hits
+Component serialization bytes omit native ItemStack payloads and network framing. DialogSession.renderNanos measures server adapter construction, not latency/GPU work. FPS samples in capped local clients are separate diagnostics, not a throughput promise. Validate actual glyph advances, click coordinates, shader output, still-mode stability and native resource preservation through real-client tests.
 
-`ShaderEffect.Kind.WHEEL` uses previously unused **type code 0**. Existing type codes 1–7 and the 69-bit/23-cell per-effect transport stay unchanged. Rebuild the matching shared shader pack: an older pack cannot render the new kind. Do not rely on enum ordinals; the wire value is `kind.code`.
-
-- Parameter 0: target number bits 0–5, previous number bits 6–11, rotor turns bits 12–14. Numbers must be 0–36; turns 1–7.
-- Parameter 1: duration ticks bits 0–8 (20–511), spin bit 9 (static 0/spin 1), material bit 10 (walnut 0/ebony 1). Remaining bits are reserved.
-- Animated lifetime is the duration when spin is set; a static wheel has lifetime zero. The root world-tick start drives continuous shader time; there is no per-frame server update.
-
-The preset uses the clockwise single-zero sequence `0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26`. Continuous rotor easing and a counter-rotating ball settle into the supplied target beneath the fixed marker. The final stage follows the rotor with a damped bounce. Radial wedges, inset pockets, ivory ball, walnut/ebony surfaces, brass rings and numerals are procedural GLSL; there is no sprite sheet or roulette background texture in the pack. The animation presents a server-selected result; it does not simulate randomness or real-world ball physics.
-
-`dui-hitbox` adds only a `Canvas.Hit`. It emits no paint, runtime raster or native item. It is useful for composing a small illustrated grid without inheriting button padding or appearance. Hit bounds still use full 9-pixel rows because vanilla text callbacks operate at that granularity. Add the hit after the corresponding decoration and give it an explicit unique ID; do not promise arbitrary vertical mouse coordinates or dragging.
-
-## Versioned protocol 2
-
-`protocol/renderer.json` is the source of generated Java RendererProtocol and shader protocol.glsl constants, including the schema hash. `python3 scripts/generate-protocol.py --check` verifies both outputs. Library version, Minecraft version, wire protocol and declared capabilities are separate fields; exact ZIP identity remains enforced. See [compatibility](compatibility.md).
-
-The three-bit carrier header retains legacy kinds 0..3. Kinds 4/5 are generic native motion without/with clipping; 6 carries four-bit extended effect kinds; 7 carries extended effects with generic tracks. Built-in effect codes 0..7 retain their meaning; codes 8..15 are trusted contributed effects. An unknown code/capability fails metadata validation rather than being truncated into a legacy field.
-
-The native model's centre crop remains 36 pixels inside its 48-pixel frame. Forty-eight additional RGB perimeter cells carry generic Motion fields; the original 47-cell path remains available. A colour cell carries three threshold-decoded bits. The generic tracks are finite translation, scale, rotation, opacity, pivot, duration, delay and easing. Outer guards and signed offsets are generated/validated together with the shader.
-
-Effects split into bounded native bodies: eight ordinary effects per carrier, two tracked effects per carrier. Extended effects use 24 cells; tracked effects add 48 motion cells per record. Body placement accounts for each actual vanilla body, including extra batch carriers. Default total budget remains eight; larger explicit budgets require effects-32. Do not assume one carrier means any number of objects.
-
-The GPU transforms the actual native model or procedural primitive; items are not rasterized into an exhaustive sprite pack. Preset paths retain detailed card flips/flights, staggered chips and wheel/ball behaviour. Generic tracks can move unrelated native models and procedural cards without a menu-specific shader. Clock age is world tick modulo 24,000; finish/remove transients before a wrap. Motion-off uses final poses and is verified through zero screenshot deltas.
-
-Scene planning handles dropdown coverage before backend emission. It suppresses intersecting earlier late-backend objects completely while preserving the source scene. This is not arbitrary cross-backend painter ordering or pixel-accurate popup clipping. Native ItemClip remains a fixed viewport applied after transformation; click rectangles remain application destination geometry.
-
-PackContribution supplies owned resources plus named GLSL functions with IDs/codes validated for collisions. The generator inserts trusted build-time functions into the shared shader and emits manifest capabilities. The demo's pulse function proves this path in an actual client; runtime template code injection is not supported.
-
-RenderReport counts are capacity diagnostics. Exported component serialization bytes omit native ItemStack payloads and packet framing. DialogSession.renderNanos measures the adapter's component/native/dialog construction on the server, not network transit or GPU time. Client FPS is sampled separately; the local tests are capped and do not establish a maximum safe production budget.
-
-
-For full-body skins and vanilla armor, see [the player model contract](player-model.md). Use `dui-player-model` with `ViewModel.appearances`; appearance capture and inventory changes belong outside projection. Rich popup layers support `cover` and `dismiss`.
+See [dynamic composition](dynamic-composition.md) for measured/typed components, shared group geometry, RGBA/fonts, keyframes, runtime map layers, registered model cameras and trusted Paper backend extensions. Renderer/world-map protocol 4 packs must be rebuilt together with metadata.

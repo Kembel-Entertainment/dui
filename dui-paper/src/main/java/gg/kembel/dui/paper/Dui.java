@@ -30,6 +30,21 @@ public final class Dui implements Listener, AutoCloseable {
   private final Map<UUID, DialogSession> sessions = new HashMap<>();
   private final Set<UUID> ready = new HashSet<>(), offered = new HashSet<>();
   private boolean stopped;
+  private final WorldMapRuntime worldMaps;
+  private final Map<String, BodyBackend> backends = new HashMap<>();
+
+  public void registerBackend(String id, BodyBackend backend) {
+    mainThread();
+    if (!sessions.isEmpty())
+      throw new IllegalStateException("Register backends before opening sessions");
+    if (id == null || !id.matches("[a-z][a-z0-9_-]*:[a-z0-9_/-]+") || backends.size() >= 32)
+      throw new IllegalArgumentException("Backend id/capacity");
+    Objects.requireNonNull(backend);
+    if (!metadata.capabilities().containsAll(backend.requiredPackCapabilities()))
+      throw new IllegalArgumentException("Pack lacks backend requirements: " + id);
+    if (backends.putIfAbsent(id, backend) != null)
+      throw new IllegalArgumentException("Duplicate backend: " + id);
+  }
 
   private Dui(JavaPlugin plugin, PackDescriptor pack, PackMetadata metadata) {
     this.plugin = Objects.requireNonNull(plugin);
@@ -39,6 +54,7 @@ public final class Dui implements Listener, AutoCloseable {
       throw new IllegalArgumentException("Pack descriptor and metadata have different hashes");
     mainThread();
     plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    worldMaps = new WorldMapRuntime(this, plugin, metadata);
   }
 
   public static Dui create(JavaPlugin plugin, PackDescriptor pack, PackMetadata metadata) {
@@ -51,13 +67,66 @@ public final class Dui implements Listener, AutoCloseable {
     if (stopped) throw new IllegalStateException("dui is closed");
   }
 
+  /** Compile a consumer-owned screen HUD using the shared template/component engine. */
+  public gg.kembel.dui.core.world.WorldHudTemplate compileWorldHud(
+      String source, String xml, ComponentRegistry registry) {
+    return gg.kembel.dui.core.world.WorldHudTemplate.parse(
+        xml,
+        RenderEnvironment.plain(new GlyphFont(metadata.worldMapLegendMetrics()))
+            .withResources(metadata.bitmapFonts(), metadata.glyphPixels())
+            .withPlayerRenderers(metadata.playerRenderers()),
+        registry,
+        source);
+  }
+
   public MenuTemplate compile(String source) throws Exception {
     return compile("<template>", source, ComponentRegistry.EMPTY);
   }
 
   public MenuTemplate compile(String name, String source, ComponentRegistry registry)
       throws Exception {
-    return MenuTemplate.parse(source, metadata.font(), registry, name);
+    return MenuTemplate.parse(
+        source,
+        RenderEnvironment.plain(metadata.font())
+            .withResources(metadata.bitmapFonts(), metadata.glyphPixels())
+            .withPlayerRenderers(metadata.playerRenderers()),
+        registry,
+        name);
+  }
+
+  public MenuTemplate compile(
+      String name, String source, ComponentRegistry registry, RenderEnvironment environment)
+      throws Exception {
+    return MenuTemplate.parse(
+        source,
+        new RenderEnvironment(
+            metadata.font(),
+            environment.tokens(),
+            environment.skins(),
+            metadata.glyphs(),
+            environment.colorTransform(),
+            metadata.bitmapFonts(),
+            metadata.glyphPixels(),
+            metadata.playerRenderers()),
+        registry,
+        name);
+  }
+
+  public gg.kembel.dui.core.world.WorldHudTemplate compileWorldHud(
+      String name, String source, ComponentRegistry registry, RenderEnvironment environment) {
+    return gg.kembel.dui.core.world.WorldHudTemplate.parse(
+        source,
+        new RenderEnvironment(
+            new GlyphFont(metadata.worldMapLegendMetrics()),
+            environment.tokens(),
+            environment.skins(),
+            metadata.glyphs(),
+            environment.colorTransform(),
+            metadata.bitmapFonts(),
+            metadata.glyphPixels(),
+            metadata.playerRenderers()),
+        registry,
+        name);
   }
 
   UiScheduler scheduler() {
@@ -120,6 +189,7 @@ public final class Dui implements Listener, AutoCloseable {
       Player player, Canvas canvas, ViewModel model, DialogOptions options, ActionHandler handler) {
     mainThread();
     validate(canvas, model);
+    worldMaps.closeViewer(player, true);
     var previous = sessions.get(player.getUniqueId());
     if (previous != null) dismiss(previous, false);
     var session = new DialogSession(this, player);
@@ -128,19 +198,52 @@ public final class Dui implements Listener, AutoCloseable {
     return session;
   }
 
-  private Key action(DialogSession session, Canvas.Hit hit, boolean closes) {
-    long revision = session.revision;
+  /** Opens a pack-declared map with normal in-game look controls, not a dialog screen. */
+  public WorldMapSession openWorldMap(
+      Player player,
+      String mapId,
+      gg.kembel.dui.core.world.WorldMapFrame frame,
+      WorldMapOptions options,
+      Consumer<gg.kembel.dui.core.world.WorldMapInput> handler) {
+    mainThread();
+    Objects.requireNonNull(player);
+    Objects.requireNonNull(options);
+    Objects.requireNonNull(handler);
+    var map = metadata.worldMaps().get(mapId);
+    if (map == null) throw new IllegalArgumentException("Pack has no world map: " + mapId);
+    frame.validate(map.definition());
+    var previous = sessions.get(player.getUniqueId());
+    if (previous != null) dismiss(previous, true);
+    return worldMaps.open(player, map, frame, options, handler);
+  }
+
+  void clearCallbacks(DialogSession session) {
+    callbacks.invalidate(session.player.getUniqueId());
+    session.actionKeys.clear();
+    session.liveActions.clear();
+  }
+
+  private Key action(DialogSession session, Canvas.Hit hit, boolean closes, boolean canvasAction) {
+    long revision = session.callbackRevision;
+    var identity =
+        new DialogSession.ActionIdentity(hit.id(), hit.action(), hit.value(), closes, canvasAction);
+    session.liveActions.add(identity);
+    var existing = session.actionKeys.get(identity);
+    if (existing != null) return existing;
     var token =
         callbacks.register(
             session.player.getUniqueId(),
             response -> {
               if (!session.active
-                  || session.revision != revision
+                  || session.callbackRevision != revision
+                  || !session.liveActions.contains(identity)
                   || sessions.get(session.player.getUniqueId()) != session) return;
               if (closes) dismiss(session, true);
               session.handler.handle(new ActionContext(session.player, session, hit, response));
             });
-    return Key.key("dui", instance + "/" + token);
+    var key = Key.key("dui", instance + "/" + token);
+    session.actionKeys.put(identity, key);
+    return key;
   }
 
   private ActionButton button(DialogSession s, DialogOptions.Button button, boolean closes) {
@@ -149,17 +252,24 @@ public final class Dui implements Listener, AutoCloseable {
         Component.text(button.label()),
         null,
         button.width(),
-        DialogAction.customClick(action(s, hit, closes), null));
+        DialogAction.customClick(action(s, hit, closes, false), null));
   }
 
   void validate(Canvas canvas, ViewModel model) {
     metadata.validate(canvas);
     model.validate(canvas);
+    for (var primitive : canvas.primitives) {
+      var backend = backends.get(primitive.type());
+      if (backend == null)
+        throw new IllegalArgumentException("Unregistered body backend: " + primitive.type());
+      backend.validate(primitive);
+    }
   }
 
   void display(DialogSession s) {
     validate(s.canvas, s.model);
-    callbacks.invalidate(s.player.getUniqueId());
+    if (!s.sampling) clearCallbacks(s);
+    s.liveActions.clear();
     if (!ready.contains(s.player.getUniqueId())) {
       offerPack(s.player);
       return;
@@ -174,7 +284,7 @@ public final class Dui implements Listener, AutoCloseable {
             hit ->
                 model.links().containsKey(hit.id())
                     ? ClickEvent.openUrl(model.links().get(hit.id()).toString())
-                    : ClickEvent.custom(action(s, hit, false), null),
+                    : ClickEvent.custom(action(s, hit, false, true), null),
             head -> NativeHeads.render(head, s.player),
             hit ->
                 itemSnapshots.containsKey(hit.id())
@@ -197,10 +307,23 @@ public final class Dui implements Listener, AutoCloseable {
             itemSnapshots,
             metadata.models(),
             metadata.supports("motion-tracks"),
-            model.appearances()));
+            model.appearances(),
+            metadata.shaders()));
     var o = s.options;
+    for (var primitive : c.renderPlan().primitives) {
+      var extra = List.copyOf(backends.get(primitive.type()).render(primitive, model));
+      if (body.size() + extra.size() > 256)
+        throw new IllegalArgumentException("Dialog body budget exceeded");
+      body.addAll(extra);
+    }
     var buttons = o.buttons().stream().map(b -> button(s, b, false)).toList();
     var exit = o.exit() == null ? null : button(s, o.exit(), true);
+    for (var identity : java.util.List.copyOf(s.actionKeys.keySet()))
+      if (!s.liveActions.contains(identity)) {
+        var key = s.actionKeys.remove(identity);
+        callbacks.invalidate(
+            s.player.getUniqueId(), UUID.fromString(key.value().substring(instance.length() + 1)));
+      }
     s.player.showDialog(
         Dialog.create(
             builder -> {
@@ -240,12 +363,14 @@ public final class Dui implements Listener, AutoCloseable {
     var id = event.getPlayer().getUniqueId();
     if (event.getStatus() == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
       ready.add(id);
+      worldMaps.loaded(event.getPlayer());
       var session = sessions.get(id);
       if (session != null && session.active) display(session);
     } else if (Set.of("DECLINED", "FAILED_DOWNLOAD", "FAILED_RELOAD", "INVALID_URL", "DISCARDED")
         .contains(event.getStatus().name())) {
       ready.remove(id);
       offered.remove(id);
+      worldMaps.closeViewer(event.getPlayer(), true);
       var s = sessions.get(id);
       if (s != null) dismiss(s, false);
       event
@@ -268,7 +393,9 @@ public final class Dui implements Listener, AutoCloseable {
       return;
     }
     var callback = callbacks.consume(connection.getPlayer().getUniqueId(), token);
-    if (callback != null)
+    if (callback != null) {
+      var current = sessions.get(connection.getPlayer().getUniqueId());
+      if (current != null) current.actionKeys.clear();
       plugin
           .getServer()
           .getScheduler()
@@ -278,11 +405,13 @@ public final class Dui implements Listener, AutoCloseable {
                 if (!stopped && connection.getPlayer().isOnline())
                   callback.accept(event.getDialogResponseView());
               });
+    }
   }
 
   @EventHandler
   public void quit(PlayerQuitEvent event) {
     var id = event.getPlayer().getUniqueId();
+    worldMaps.closeViewer(event.getPlayer(), false);
     var s = sessions.get(id);
     if (s != null) dismiss(s, false);
     ready.remove(id);
@@ -294,6 +423,7 @@ public final class Dui implements Listener, AutoCloseable {
   public void close() {
     if (stopped) return;
     mainThread();
+    worldMaps.close();
     for (var s : List.copyOf(sessions.values())) dismiss(s, true);
     HandlerList.unregisterAll(this);
     callbacks.clear();

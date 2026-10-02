@@ -4,8 +4,13 @@
 
 ## Documentation
 
+- [Extensions](docs/extensions.md): Consumer-owned typed components/defaults, skins, glyphs and trusted shader contributions; no domain library edits.
+- [Migration to 0.2](docs/migration-0.2.md): Breaking ownership/API/pack changes and replacement examples.
+
+- [World maps](docs/world-map.md): Optional first-person camera backend, build-time geometry/fonts, frame/input APIs, shared pack, negative advances, hotbar zoom and cleanup.
+
 - [Application API](docs/application-api.md): Controllers, typed actions/catalogues, lifetimes, profiles/collections, token styles, scene limits, generic motion, resource providers, pack contributions and test helpers.
-- [Compatibility](docs/compatibility.md): WIP release matrix, protocol 2 and legacy boundaries, generated codec and validation.
+- [Compatibility](docs/compatibility.md): WIP release matrix, protocol 4, schema fingerprints and explicit renderer boundaries, generated codec and validation.
 - [Verification](docs/verification.md): Build/client acceptance evidence and measured limits.
 
 - [Coding-agent guide](docs/llm-guide.md): Compact API contract, template semantics, lifecycle rules, media, pack deployment, limits and a reusable prompt. Start here when supplying dui context to an LLM.
@@ -14,9 +19,13 @@
 - [Components](docs/components.md): Per-component attributes, defaults, bounds, layout rules, action payloads and unsupported/unused parameters.
 - [Application recipes](docs/recipes.md): Stateful controls with a complete controller, repeats, item/image/link keys, async updates, native forms, animated gifts, clipped carousels, deployment and troubleshooting. Include this for building consumer plugins.
 - [Architecture](docs/architecture.md): Canvas rendering, font positioning, native model carriers and callback transport.
-- [Rendering protocol](docs/rendering.md): Negative spacing with Unicode addresses and pen arithmetic, vertical band fonts, invisible hit spans, runtime rasters, native item/shader payload and debugging invariants. Include this for renderer or pack changes.
+- [Rendering protocol](docs/rendering.md): Negative spacing with Unicode addresses and pen arithmetic, vertical band fonts, invisible hit spans, runtime rasters, native item/typed shader payload and debugging invariants. Include this for renderer or pack changes.
 - [Composition and UI jobs](docs/composition.md): Implemented public components, props/outlets, relative layout, pagination, budgets and task scopes.
 - [Abstraction roadmap](docs/roadmap.md): Audit evidence, delivery order, ownership, acceptance criteria and completed migration and explicit renderer boundaries.
 - [dui-demo](https://github.com/Kembel-Entertainment/dui-demo): Companion consumer with examples and real-client integration tests.
 
 Own code is MIT licensed. API and pack formats are provisional. No remote Maven release has been published. Check the source for the exact checked-out version; do not invent CSS, browser JavaScript or undocumented methods.
+
+- World-map HUDs are consumer-owned dui-hud templates wrapping normal dui-menu components. Layout/style changes are runtime frame updates; static map art remains a pack-build input. See docs/world-map.md.
+
+See [dynamic composition](docs/dynamic-composition.md) for measured/typed components, shared group geometry, RGBA/fonts, keyframes, runtime map layers, registered model cameras and trusted Paper backend extensions. Renderer/world-map protocol 4 packs must be rebuilt together with metadata.

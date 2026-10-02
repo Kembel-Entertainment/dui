@@ -35,7 +35,9 @@ class HarnessTest {
         new MenuHarness<>(
             state,
             s -> {
-              var c = new Canvas(180, 90);
+              var c =
+                  new Canvas(
+                      180, 90, RenderEnvironment.plain(new GlyphFont(java.util.Map.of("?", 6))));
               c.hit(new Canvas.Hit("add", "increment", "2", "", 0, 0, 18, 18));
               return c;
             },

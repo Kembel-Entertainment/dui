@@ -36,8 +36,7 @@ public final class CanvasRenderer {
         headRenderer,
         hit ->
             HoverEvent.showText(
-                Component.text(
-                    hit.tooltip().isBlank() ? hit.id() : hit.tooltip(), NamedTextColor.AQUA)));
+                Component.text(hit.tooltip().isBlank() ? hit.id() : hit.tooltip())));
   }
 
   public Component render(
@@ -95,21 +94,15 @@ public final class CanvasRenderer {
       }
       line.append(shift(-canvas.width - 2));
       if (y == 0 && canvas.hideFocusOutline)
-        line.append(run("" + FocusMarker.GLYPH, "focus_guard", FocusMarker.payload(canvas)))
+        line.append(run(FocusMarker.glyph(canvas), "focus_guard", canvas.focusOutlineColor))
             .append(shift(-FocusMarker.ADVANCE));
       images(line, canvas, y, true);
       for (var p : canvas.paints) {
         if (p.y() + p.height() <= y || p.y() >= y + 9) continue;
         if (p.text() != null || p.icon() != null) {
-          if (p.icon() != null && p.icon().startsWith("item/")) {
-            int half = (y - p.y()) / 9;
-            line.append(shift(p.x()))
-                .append(run("" + ItemGlyphs.glyph(p.icon(), half), "items", p.color()))
-                .append(shift(-p.x() - ItemGlyphs.advance(p.icon(), half)));
-            continue;
-          }
           int offset = p.y() % 9, band = (y - p.y() / 9 * 9) / 9;
-          if (offset == 0 && band != 0 || band > 1) continue;
+          if (p.text() != null && offset == 0 && band != 0
+              || band > (p.icon() == null ? 1 : (p.height() + offset + 8) / 9 - 1)) continue;
           String font =
               p.text() != null
                   ? (offset == 0 ? "text" : "text_" + offset + "_" + band)
@@ -117,8 +110,16 @@ public final class CanvasRenderer {
           Component glyph =
               p.text() != null
                   ? run(p.text(), font, p.color())
-                  : run("" + GlyphAtlas.icon(p.icon(), band), font, p.color());
-          int advance = p.text() != null ? p.width() : 10;
+                  : run(
+                      ""
+                          + GlyphRegistry.require(canvas.environment().glyphs(), p.icon())
+                              .character(band),
+                      font,
+                      p.color());
+          int advance =
+              p.text() != null
+                  ? p.width()
+                  : GlyphRegistry.require(canvas.environment().glyphs(), p.icon()).advance();
           line.append(shift(p.x())).append(glyph).append(shift(-p.x() - advance));
         } else {
           int top = Math.max(p.y(), y), h = Math.min(p.y() + p.height(), y + 9) - top;
@@ -169,13 +170,20 @@ public final class CanvasRenderer {
         if (bottom <= top) continue;
         line.append(shift(image.x()));
         for (int col = 0; col < image.raster().width; ) {
-          int columnStart = col, color = image.raster().rgb(col++, row);
-          while (col < image.raster().width && image.raster().rgb(col, row) == color) col++;
+          int columnStart = col, argb = image.raster().argb(col++, row), color = argb & 0xffffff;
+          int alpha = (argb >>> 24) * 15 / 255;
+          while (col < image.raster().width && image.raster().argb(col, row) == argb) col++;
           int pixels = Math.min(col * cell, image.width()) - columnStart * cell;
+          if (alpha == 0) {
+            line.append(shift(pixels));
+            continue;
+          }
           var glyphs = new StringBuilder();
           while (pixels > 0) {
             int bit = 31 - Integer.numberOfLeadingZeros(Math.min(pixels, 256));
-            glyphs.append(GlyphAtlas.rectangle(bit, bottom - top)).append(GlyphFont.shift(-1));
+            glyphs
+                .append(GlyphAtlas.rectangle(bit, bottom - top, alpha))
+                .append(GlyphFont.shift(-1));
             pixels -= 1 << bit;
           }
           line.append(run(glyphs.toString(), "canvas_" + (top - y), color));

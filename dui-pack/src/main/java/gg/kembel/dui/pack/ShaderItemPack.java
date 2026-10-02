@@ -12,10 +12,10 @@ import javax.imageio.ImageIO;
 /** 26.2 native model wrappers. The 48px frame carries binary layout data outside the 36px item. */
 public final class ShaderItemPack {
   public static final int DATA_INDEX = 32;
-  public static final int BURST_TICKS = 96;
   private static final Gson JSON = new Gson();
 
-  private static byte[] shader(String ext, List<PackContribution.Effect> effects)
+  private static byte[] shader(
+      String ext, List<PackContribution.Shader> effects, Map<String, String> modules)
       throws IOException {
     try (var in =
         ShaderItemPack.class.getResourceAsStream("/ui/shader/position_tex_color." + ext)) {
@@ -40,36 +40,38 @@ public final class ShaderItemPack {
                 "// PLAYER_FUNCTIONS",
                 new String(Objects.requireNonNull(player).readAllBytes(), StandardCharsets.UTF_8));
       }
-      var declarations = new StringBuilder();
-      var dispatch = new StringBuilder();
-      for (var effect : effects) {
-        declarations.append(effect.glsl()).append("\n");
-        dispatch
-            .append("if(kind==")
-            .append(effect.code())
-            .append(")return ")
-            .append(effect.function())
-            .append("(q,size,a,b,t,eventLive&&motion);\n");
-      }
-      source = source.replace("// EXTENSION_DISPATCH", dispatch.toString());
-      source = source.replace("vec4 effectPixel(", declarations + "\nvec4 effectPixel(");
-      return source.getBytes(StandardCharsets.UTF_8);
+      if (ext.equals("fsh"))
+        source =
+            source.replace(
+                "// SHADER_DEFINITIONS",
+                ShaderCompiler.compile(
+                    effects,
+                    ShaderRegistry.bind(
+                        effects.stream().map(PackContribution.Shader::specification).toList()),
+                    modules));
+      return source
+          .replace("// PLAYER_RENDERERS", "#moj_import <dui:player-renderers.glsl>")
+          .getBytes(StandardCharsets.UTF_8);
     }
   }
 
   public static void write(ZipOutputStream zip, VanillaAssets assets, Map<String, byte[]> additions)
       throws IOException {
-    write(zip, assets, additions, List.of());
+    write(zip, assets, additions, List.of(), Map.of());
   }
 
   public static void write(
       ZipOutputStream zip,
       VanillaAssets assets,
       Map<String, byte[]> additions,
-      List<PackContribution.Effect> effects)
+      List<PackContribution.Shader> effects,
+      Map<String, String> modules)
       throws IOException {
     for (String ext : List.of("vsh", "fsh"))
-      put(zip, "assets/minecraft/shaders/core/position_tex_color." + ext, shader(ext, effects));
+      put(
+          zip,
+          "assets/minecraft/shaders/core/position_tex_color." + ext,
+          shader(ext, effects, modules));
     var white = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
     white.setRGB(0, 0, 0xFFFFFFFF);
     var clear = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
@@ -125,7 +127,7 @@ public final class ShaderItemPack {
     put(zip, "assets/dui/models/item/player_armor_transport.json", JSON.toJson(marker));
     var effectMarker = marker.deepCopy();
     var effectElements = legacyElements.deepCopy();
-    for (int i = 0; i < ShaderEffect.LIMIT * 24; i++)
+    for (int i = 0; i < ShaderInvocation.LIMIT * 24; i++)
       effectElements.add(
           face(
               -13 + (i % 14) * 3,
@@ -203,7 +205,7 @@ public final class ShaderItemPack {
       for (int i = 0;
           i
               < ItemTransport.NATIVE_CELLS
-                  + (entry.getKey().equals("dui:effect/panel") ? ShaderEffect.LIMIT * 24 : 0);
+                  + (entry.getKey().equals("dui:effect/panel") ? ShaderInvocation.LIMIT * 24 : 0);
           i++)
         tints.add(
             JsonParser.parseString(

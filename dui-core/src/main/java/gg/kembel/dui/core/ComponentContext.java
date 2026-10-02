@@ -17,5 +17,9 @@ public record ComponentContext(
   @FunctionalInterface
   public interface ChildRenderer {
     void draw(MenuTemplate.Node child, int x, int y, int width, int height);
+
+    default Measure.Size measure(MenuTemplate.Node child, Measure.Constraints constraints) {
+      throw new UnsupportedOperationException("Child measurement requires a compiled template");
+    }
   }
 }

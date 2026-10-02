@@ -1,7 +1,7 @@
 plugins { id 'base' }
 allprojects {
     group = 'gg.kembel.dui'
-    version = '0.1.0-SNAPSHOT'
+    version = '0.2.0-SNAPSHOT'
     repositories { mavenCentral(); maven { url = 'https://repo.papermc.io/repository/maven-public/' } }
 }
 subprojects {
@@ -16,3 +16,8 @@ subprojects {
 }
 tasks.named('check') { dependsOn subprojects.collect { it.tasks.named('check') } }
 tasks.named('build') { dependsOn subprojects.collect { it.tasks.named('build') } }
+
+tasks.register('verifyWorldMapProtocol', Exec) { commandLine 'python3', 'scripts/generate-world-map-protocol.py', '--check' }
+tasks.named('check') { dependsOn 'verifyWorldMapProtocol' }
+tasks.register('verifyRendererProtocol', Exec) { commandLine 'python3', 'scripts/generate-protocol.py', '--check' }
+tasks.named('check') { dependsOn 'verifyRendererProtocol' }

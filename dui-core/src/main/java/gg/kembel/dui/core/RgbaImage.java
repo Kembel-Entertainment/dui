@@ -28,6 +28,35 @@ public final class RgbaImage {
     this.pixels = argb.clone();
   }
 
+  public RasterImage raster(int targetW, int targetH, Fit fit, Sampling sampling) {
+    if (targetW < 1 || targetH < 1 || targetW > 512 || targetH > 512)
+      throw new IllegalArgumentException("RGBA target bounds");
+    var source =
+        new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+    source.setRGB(0, 0, width, height, pixels, 0, width);
+    var target =
+        new java.awt.image.BufferedImage(
+            targetW, targetH, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+    var g = target.createGraphics();
+    try {
+      double scale =
+          fit == Fit.COVER
+              ? Math.max((double) targetW / width, (double) targetH / height)
+              : Math.min((double) targetW / width, (double) targetH / height);
+      int w = (int) Math.ceil(width * scale), h = (int) Math.ceil(height * scale);
+      g.setRenderingHint(
+          java.awt.RenderingHints.KEY_INTERPOLATION,
+          sampling == Sampling.NEAREST
+              ? java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+              : java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+      g.drawImage(source, (targetW - w) / 2, (targetH - h) / 2, w, h, null);
+    } finally {
+      g.dispose();
+    }
+    return RasterImage.argb(
+        targetW, targetH, target.getRGB(0, 0, targetW, targetH, null, 0, targetW));
+  }
+
   public RasterImage flatten(int targetW, int targetH, Fit fit, Sampling sampling, int background) {
     if (targetW < 1
         || targetH < 1

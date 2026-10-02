@@ -1,3 +1,4 @@
+// PLAYER_RENDERERS
 // Shared orthographic cuboid renderer. Skin UVs use Minecraft's normalized 64x64 layout.
 mat3 playerYaw(float a){float c=cos(a),s=sin(a);return mat3(c,0,-s,0,1,0,s,0,c);}
 mat3 playerPitch(float a){float c=cos(a),s=sin(a);return mat3(1,0,0,0,c,s,0,-s,c);}
@@ -26,19 +27,21 @@ void playerPart(int i,bool slim,out vec3 center,out vec3 dim,out vec2 uv,out vec
     else if(i==4){center=vec3(-2,6,0);dim=vec3(4,12,4);uv=vec2(0,16);outer=vec2(0,32);}
     else{center=vec3(2,6,0);dim=vec3(4,12,4);uv=vec2(16,48);outer=vec2(0,48);}
 }
-void playerRay(vec2 q,vec2 size,int facing,out vec3 ro,out vec3 rd){
-    float scale=size.y/36.0;vec2 p=(q-size*.5)/scale;
-    mat3 camera=playerYaw(float(facing)*.78539816339)*playerPitch(-.10);
+void playerRay(vec2 q,vec2 size,int flags,out vec3 ro,out vec3 rd){
+    vec4 view;vec2 idle;float limbs[6];if(!duiPlayerPose((flags>>10)&15,(flags>>2)&7,view,idle,limbs)){ro=vec3(0);rd=vec3(0,0,-1);return;}
+    float scale=size.y/view.z;vec2 p=(q-size*.5)/scale;
+    mat3 camera=playerYaw(view.x)*playerPitch(view.y);
     ro=camera*vec3(p.x,-p.y,60)+vec3(0,16,0);rd=camera*vec3(0,0,-1);
 }
 vec4 playerSkinPixel(sampler2D skin,vec2 q,vec2 size,int flags,float time){
     bool slim=(flags&32)!=0,outerLayer=(flags&64)!=0,idle=(flags&128)!=0;
-    vec3 ro,rd;playerRay(q,size,(flags>>2)&7,ro,rd);
+    vec3 ro,rd;playerRay(q,size,flags,ro,rd);
+    vec4 view;vec2 idleParams;float limbs[6];duiPlayerPose((flags>>10)&15,(flags>>2)&7,view,idleParams,limbs);
     float nearest=1e10;vec4 result=vec4(0);
     for(int i=0;i<6;i++){
         vec3 center,dim;vec2 uv,outer;playerPart(i,slim,center,dim,uv,outer);
-        mat3 pose=playerPitch(idle&&i>=2&&i<=3?sin(time*1.8)*.035*(i==2?1.0:-1.0):0.0);
-        if(idle)center.y+=sin(time*1.8)*.08;
+        mat3 pose=playerPitch(limbs[i]+(idle&&i>=2&&i<=3?sin(time*idleParams.y)*idleParams.x*(i==2?1.0:-1.0):0.0));
+        if(idle)center.y+=sin(time*idleParams.y)*.08;
         for(int layer=0;layer<2;layer++){
             if(layer==1&&!outerLayer)continue;
             vec3 expanded=dim+vec3(layer==1?(i==0?1.0:.5):0.0),n,p;float t;
@@ -54,12 +57,13 @@ vec4 playerSkinPixel(sampler2D skin,vec2 q,vec2 size,int flags,float time){
 }
 vec4 playerArmorPixel(sampler2D atlas,vec2 q,vec2 size,int flags,float time){
     bool slim=(flags&32)!=0,idle=(flags&128)!=0;int slot=(flags>>8)&3;
-    vec3 ro,rd;playerRay(q,size,(flags>>2)&7,ro,rd);
+    vec3 ro,rd;playerRay(q,size,flags,ro,rd);
+    vec4 view;vec2 idleParams;float limbs[6];duiPlayerPose((flags>>10)&15,(flags>>2)&7,view,idleParams,limbs);
     float nearest=1e10,bodyNearest=1e10;vec4 result=vec4(0);
     for(int i=0;i<6;i++){
         vec3 center,dim;vec2 uv,outer;playerPart(i,slim,center,dim,uv,outer);
-        mat3 pose=playerPitch(idle&&i>=2&&i<=3?sin(time*1.8)*.035*(i==2?1.0:-1.0):0.0);
-        if(idle)center.y+=sin(time*1.8)*.08;
+        mat3 pose=playerPitch(limbs[i]+(idle&&i>=2&&i<=3?sin(time*idleParams.y)*idleParams.x*(i==2?1.0:-1.0):0.0));
+        if(idle)center.y+=sin(time*idleParams.y)*.08;
         vec3 n,p;float t;if(playerBox(transpose(pose)*(ro-center),transpose(pose)*rd,dim*.5,t,n,p))bodyNearest=min(bodyNearest,t);
     }
     for(int i=0;i<6;i++){
@@ -67,8 +71,8 @@ vec4 playerArmorPixel(sampler2D atlas,vec2 q,vec2 size,int flags,float time){
         vec3 center,dim;vec2 uv,outer;playerPart(i,slim,center,dim,uv,outer);
         if(i==3){uv=vec2(40,16);}if(i>=4)uv=vec2(0,16);
         if(i==2||i==3)dim.x=4.0;
-        mat3 pose=playerPitch(idle&&i>=2&&i<=3?sin(time*1.8)*.035*(i==2?1.0:-1.0):0.0);
-        if(idle)center.y+=sin(time*1.8)*.08;
+        mat3 pose=playerPitch(limbs[i]+(idle&&i>=2&&i<=3?sin(time*idleParams.y)*idleParams.x*(i==2?1.0:-1.0):0.0));
+        if(idle)center.y+=sin(time*idleParams.y)*.08;
         vec3 expanded=dim+vec3(slot==2?1.0:2.0),n,p;float t;
         if(!playerBox(transpose(pose)*(ro-center),transpose(pose)*rd,expanded*.5,t,n,p)||t>=nearest||t>bodyNearest+.001)continue;
         if(i==3||i==5)p.x=-p.x;

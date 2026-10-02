@@ -1,17 +1,15 @@
-> These recipes retain low-level compatibility examples. Prefer [the application layer](application-api.md) for new controller-based menus, scoped async jobs, semantic themes and optional component packages. Direct scheduler examples need explicit lifecycle guards; TaskScope handles those guards for presentation work. Keep business event generations and durable settlement in the consumer.
-
 # Building applications with dui
 
-These examples target **dui 0.1.0-SNAPSHOT, Java 25 and Paper/Minecraft 26.2**. Start with the [complete plugin quickstart](quickstart.md). The recipes add application behaviour through the public API; they do not require renderer changes. See [components](components.md) for exact attributes/defaults and [the LLM guide](llm-guide.md) for lifecycle rules.
+These examples target **dui 0.2.0-SNAPSHOT, Java 25 and Paper/Minecraft 26.2**. Start with the [complete plugin quickstart](quickstart.md). The recipes add application behaviour through the public API; they do not require renderer changes. See [components](components.md) for exact attributes/defaults and [the LLM guide](llm-guide.md) for lifecycle rules.
 
 ## Checkbox and dropdown with application state
 
 Save this template as `ui/preferences.html`. The popup has room for its two 18-pixel options below the field.
 
 ```xml
-<dui-menu width="300" height="144" padding="9" theme="studio_dark">
+<dui-menu width="300" height="144" padding="9" background="#182334">
   <dui-column gap="9">
-    <dui-heading label="Preferences" height="18" />
+    <dui-heading color="#FFFFFF" label="Preferences" height="18" />
     <dui-checkbox id="notifications" action="toggle_notifications"
                   label="Notifications" checked="{{enabled}}" height="27" />
     <dui-dropdown id="currency" action="toggle_currency" select="select_currency"
@@ -20,17 +18,19 @@ Save this template as `ui/preferences.html`. The popup has room for its two 18-p
       <dui-option value="copper" label="Copper" />
       <dui-option value="silver" label="Silver" />
     </dui-dropdown>
-    <dui-text label="{{message}}" height="18" />
+    <dui-text color="#FFFFFF" label="{{message}}" height="18" />
   </dui-column>
 </dui-menu>
 ```
 
-This complete consumer class compiles the supplied template and owns per-player state. Create it once after `Dui.create`, reading the resource as in the quickstart; call `preferences.open(player)` from your command. Declare `exampleui.preferences` in plugin.yml with the default access appropriate to your plugin. Call `forget(playerId)` on player quit and `clear()` on plugin shutdown, alongside `ui.close()`.
+This complete consumer class compiles the supplied template and owns per-player state. Install your skins/tokens in `RenderEnvironment` (see [quickstart](quickstart.md) and [extensions](extensions.md)), then create it once after `Dui.create`, reading the resource as in the quickstart; call `preferences.open(player)` from your command. Declare `exampleui.preferences` in plugin.yml with the default access appropriate to your plugin. Call `forget(playerId)` on player quit and `clear()` on plugin shutdown, alongside `ui.close()`.
 
 ```java
 package example.dui;
 
 import gg.kembel.dui.core.MenuTemplate;
+import gg.kembel.dui.core.ComponentRegistry;
+import gg.kembel.dui.core.RenderEnvironment;
 import gg.kembel.dui.paper.ActionContext;
 import gg.kembel.dui.paper.DialogOptions;
 import gg.kembel.dui.paper.Dui;
@@ -55,9 +55,9 @@ public final class PreferencesMenu {
         String message = "Changes are stored in memory.";
     }
 
-    public PreferencesMenu(Dui ui, String templateSource) throws Exception {
+    public PreferencesMenu(Dui ui, String templateSource, RenderEnvironment environment) throws Exception {
         this.ui = ui;
-        this.template = ui.compile(templateSource);
+        this.template = ui.compile("preferences.html", templateSource, ComponentRegistry.EMPTY, environment);
     }
 
     public void open(Player player) {
@@ -115,7 +115,7 @@ Page/filter your own list before rendering. Business IDs make better hit IDs tha
 <dui-menu width="300" height="108" padding="9">
   <dui-column gap="9">
     <dui-if test="{{showHeading}}">
-      <dui-heading label="{{heading}}" height="18" />
+      <dui-heading color="#FFFFFF" label="{{heading}}" height="18" />
     </dui-if>
     <dui-repeat items="rows" as="row">
       <dui-button id="row_{{row.id}}" action="inspect" payload="{{row.id}}"
@@ -141,10 +141,11 @@ The handler receives `action="inspect"` and `value="alpha"` or `"beta"`. Look up
 An item placement ID selects an ItemStack. An image's resolved `source` selects a raster. A link selects a **hit ID**. These three keys serve different purposes; they are not download URLs or automatic commands.
 
 ```xml
-<dui-menu width="240" height="81" padding="9" theme="studio">
+<dui-menu width="300" height="90" padding="9" background="#182334">
   <dui-row gap="9">
-    <dui-slot id="pickaxe" width="72" label="Sample" action="inspect" />
-    <dui-image id="preview" width="141" source="{{imageKey}}" pixel-size="3" />
+    <dui-item id="pickaxe" width="72" height="72" size="54" />
+    <dui-button id="inspect_pickaxe" width="54" height="27" label="Inspect" action="inspect" />
+    <dui-image id="preview" width="138" source="{{imageKey}}" pixel-size="3" />
   </dui-row>
 </dui-menu>
 ```
@@ -155,10 +156,10 @@ ViewModel media = new ViewModel(
     Map.of("imageKey", "preview"),
     Map.of("preview", placeholder),
     Map.of("pickaxe", new ItemStack(Material.DIAMOND_PICKAXE)),
-    Map.of("pickaxe", URI.create("https://kembel.gg")));
+    Map.of("inspect_pickaxe", URI.create("https://kembel.gg")));
 ```
 
-Here the slot opens vanilla's link confirmation because its hit has an explicit URL. Use an empty links map to route `inspect` to your custom handler instead. The raster is a placeholder; replace it with a decoded server-supplied image to show downloaded content without changing the pack. Always provide a raster for every referenced source, including while loading. Images crop to fill their rectangles; their sample budget is `ceil(width/cellSize) × ceil(height/cellSize)` each, summed across the canvas. A direct `dui-item` is visual-only; use a slot/control hit for clicks.
+Here the inspect button opens vanilla's link confirmation because its hit has an explicit URL. Use an empty links map to route `inspect` to your custom handler instead. The raster is a placeholder; replace it with a decoded server-supplied image to show downloaded content without changing the pack. Always provide a raster for every referenced source, including while loading. Images crop to fill their rectangles; their sample budget is `ceil(width/cellSize) × ceil(height/cellSize)` each, summed across the canvas. A direct `dui-item` is visual-only; use a separate control hit for clicks; decorative slot frames are consumer components.
 
 ## Asynchronous image updates
 
@@ -190,11 +191,11 @@ The view task scope dispatches completion on the server thread and discards resp
 This snippet runs inside your plugin's player command with `ui` already initialized. Import Paper's `DialogInput`, Adventure `Component`, and the dui/public collection types. The form is outside the custom canvas; it keeps vanilla's layout and submits a `DialogResponseView`. It demonstrates validation and acknowledgement, not persistence.
 
 ```java
-MenuTemplate form = ui.compile("""
+MenuTemplate form = ui.compile("form.html", """
     <dui-menu width="280" height="45">
-      <dui-column><dui-text label="Enter a sample display name." height="18" /></dui-column>
+      <dui-column><dui-text color="#FFFFFF" label="Enter a sample display name." height="18" /></dui-column>
     </dui-menu>
-    """);
+    """, ComponentRegistry.EMPTY, environment);
 DialogOptions options = new DialogOptions(
     Component.text("Edit sample name"),
     List.of(DialogInput.text("name", Component.text("Name"))
@@ -223,22 +224,20 @@ Validate nulls, length, allowed choices and numeric bounds/finite values on the 
 <dui-menu width="300" height="144" animation-start="{{openedAt}}" motion="{{motion}}">
   <dui-layer height="fill">
     <dui-item id="gift_body" x="9" y="36" width="72" height="72" size="72"
-      transition="bounce" transition-start="{{openedAt}}" transition-duration="24" />
+      motion-start="{{openedAt}}" motion-duration="24" scale-from="0.85" easing="back_out" />
     <dui-item id="gift_lid" x="9" y="36" width="72" height="72" size="72"
-      transition="lift" transition-start="{{openedAt}}" transition-duration="24" transition-distance="24" />
+      motion-start="{{openedAt}}" motion-duration="24" translate-y="24" opacity-to="0" />
     <dui-if test="{{revealed}}">
       <dui-item id="reward" x="27" y="54" width="36" height="36" size="36"
-        transition="pop" transition-start="{{revealedAt}}" transition-duration="18" />
+        motion-start="{{revealedAt}}" motion-duration="18" scale-from="0" easing="back_out" />
     </dui-if>
-    <dui-particles id="party" effect="confetti" width="300" height="144"
-      origin-x="45" origin-y="72" count="40" delay="24" />
   </dui-layer>
 </dui-menu>
 ```
 
 Supply map keys `openedAt`/`revealedAt` as world game-time ticks, booleans `motion`/`revealed`, and native ItemStacks keyed `gift_body`, `gift_lid`, and `reward` when visible. The body/lid are custom decorative models registered as pack additions; the reward is a normal Minecraft ItemStack. These are independent visual layers, not extra dialog controls. Give the user a separate button/hit for opening.
 
-Keep the selected gift and a generation counter in the consumer's session. Start once in the action handler, schedule reveal after 24 ticks, and check that the same session/generation/menu is active before updating. Preserve `openedAt` and set `revealedAt` only at reveal. Cancel on explicit close/back/replay. After the finite burst, render the scene with `motion=false` to retain the lifted lid and full-size reward without future clock-wrap replay. This is demonstration state, not a reward claim transaction. See [Advent demo](https://github.com/Kembel-Entertainment/dui-demo/blob/master/docs/advent.md) for a complete consumer.
+Keep the selected gift and a generation counter in the consumer's session. Start once in the action handler, schedule reveal after 24 ticks, and check that the same session/generation/menu is active before updating. Preserve `openedAt` and set `revealedAt` only at reveal. Cancel on explicit close/back/replay. For confetti, contribute your own particle ShaderSpec/function/component; this example only moves native models. After the finite animation, render the scene with `motion=false` to retain the lifted lid and full-size reward without future clock-wrap replay. This is demonstration state, not a reward claim transaction. See [Advent demo](https://github.com/Kembel-Entertainment/dui-demo/blob/master/docs/advent.md) for a complete consumer.
 
 ## A clipped horizontal carousel
 
@@ -248,8 +247,7 @@ Keep the selected gift and a generation counter in the consumer's session. Start
     <dui-repeat items="cards" as="card">
       <dui-item id="{{card.id}}" x="{{card.x}}" y="18" size="63"
         width="63" height="63" clip-x="68" clip-y="18" clip-width="185" clip-height="63"
-        transition="{{card.transition}}" transition-start="{{startedAt}}"
-        transition-duration="24" transition-distance="{{distance}}" />
+        motion-start="{{startedAt}}" motion-duration="24" translate-x="{{distance}}" />
     </dui-repeat>
     <dui-button id="previous" action="previous" label="&lt;" locked="{{moving}}"
       x="12" y="36" width="27" height="27" />
@@ -259,11 +257,11 @@ Keep the selected gift and a generation counter in the consumer's session. Start
 </dui-menu>
 ```
 
-The resting strip uses three models at X=63,129,195. To slide left, advance the selected index, then send four target placements X=-3,63,129,195 with `transition="slide"`, `distance=66`, one nonnegative `startedAt` world tick, and `moving=true`. Their first frame appears at X=63,129,195,256; the outgoing and incoming cards are clipped by the fixed viewport. To slide right, decrement the selection and target X=63,129,195,256 with `distance=-66`. Wrap business indices with `Math.floorMod` and keep placement IDs unique.
+The resting strip uses three models at X=63,129,195. To slide left, advance the selected index, then send four target placements X=-3,63,129,195 with `translate-x="66"`, one nonnegative `startedAt` world tick, and `moving=true`. Their first frame appears at X=63,129,195,256; the outgoing and incoming cards are clipped by the fixed viewport. To slide right, decrement the selection and target X=63,129,195,256 with `translate-x="-66"`. Wrap business indices with `Math.floorMod` and keep placement IDs unique.
 
 The extra card is only a visual carrier. Provide an ItemStack for every placement, including the one outside the viewport. Normal Minecraft models work; custom illustrated cards require their own registered model/texture additions. Rasters passed to `dui-image` do not gain this animation.
 
-After 24 ticks, verify the current session, section and generation, render the three resting placements with `transition=""`, and unlock the controls. Close, menu changes, mode changes and motion toggles cancel the pending task. With motion off, render the final three-card layout immediately. The server receives arrows/card clicks; Vanilla does not expose drag/swipe gestures. Use separate hits under the visible cards, disable them during transit, and keep each in the fixed canvas/9-pixel grid. No per-frame server loop is needed. See [the complete warp consumer](https://github.com/Kembel-Entertainment/dui-demo/blob/master/docs/warps.md).
+After 24 ticks, verify the current session, section and generation, render the three resting placements without motion attributes, and unlock the controls. Close, menu changes, mode changes and motion toggles cancel the pending task. With motion off, render the final three-card layout immediately. The server receives arrows/card clicks; Vanilla does not expose drag/swipe gestures. Use separate hits under the visible cards, disable them during transit, and keep each in the fixed canvas/9-pixel grid. No per-frame server loop is needed. See [the complete warp consumer](https://github.com/Kembel-Entertainment/dui-demo/blob/master/docs/warps.md).
 
 ## Application ownership and update rules
 
@@ -302,11 +300,4 @@ For larger complete consumers, browse [dui-demo's templates](https://github.com/
 
 ## Sequential card flight
 
-```html
-<dui-menu width="480" height="324" animation-start="{{tick}}" motion="{{motion}}">
-  <dui-playing-card id="first_card" x="194" y="44" width="258" height="190"
-      value="{{visibleCard}}" animation="fly" card-height="54" delay="0" duration="28" />
-</dui-menu>
-```
-
-The flight rectangle contains the complete trajectory. `fly` starts at top-right, ends at bottom-left, eases and rotates slightly. Its fixed face height is 18–63 pixels; width is min(rectangle width − 4, face height × 0.66). Final top-left is approximately x+2, y+height−card-height−5. The accompanying static card can use the same destination slot (40×60, lift=0 for a 54-pixel face). Stagger multiple cards with even tick delays; keep at most eight total effects. Set hidden values to -1, even with face-down=true. At completion update once to the next gameplay phase, guarded by the active session/event generation. Reduced motion displays the final pose.
+Playing cards are consumer components, not a dui tag. Register a card shader with its own visible rank/suit parameters and draw it into the destination rectangle, then attach generic Motion for translation/rotation/scale/opacity. For more elaborate flips/curves, declare your own shader parameters. Stagger calls using motion-delay, preserve animation-start on unrelated updates, and update once at phase completion through a view/session TaskScope. Send only revealed values. See the consumer-owned demo-card and demo-chip-stack implementations in dui-demo for concrete artwork and rules.

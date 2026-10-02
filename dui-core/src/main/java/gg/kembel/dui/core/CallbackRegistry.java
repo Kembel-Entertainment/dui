@@ -26,6 +26,12 @@ public final class CallbackRegistry<T> {
     players.remove(player);
   }
 
+  /** Drop a removed animated action without invalidating unchanged actions in the same scene. */
+  public void invalidate(UUID player,UUID token) {
+    var map=players.get(player);
+    if(map!=null){map.remove(token);if(map.isEmpty())players.remove(player);}
+  }
+
   public void clear() {
     players.clear();
   }

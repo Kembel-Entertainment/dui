@@ -1,12 +1,12 @@
 package gg.kembel.dui.core;
 
+/** Size-addressed technical font marker. Its text RGB remains fully caller-owned. */
 public final class FocusMarker {
-  public static final char GLYPH = '\uECF0';
-  public static final int ADVANCE = 9;
+  public static final int BASE = 0xF0000, ROWS = 40, ADVANCE = 9;
 
   private FocusMarker() {}
 
-  public static int payload(Canvas canvas) {
-    return canvas.width | (canvas.height << 9);
+  public static String glyph(Canvas canvas) {
+    return Character.toString(BASE + (canvas.width - 120) * ROWS + canvas.height / 9 - 1);
   }
 }

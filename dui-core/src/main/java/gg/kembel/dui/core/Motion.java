@@ -58,11 +58,6 @@ public record Motion(
         tick, duration, 0, Easing.EASE_OUT, enabled, distance, 0, 1, 1, 0, 0, 1, 1, .5, .5);
   }
 
-  public static Motion pop(long tick, int duration, int distance, boolean enabled) {
-    return new Motion(
-        tick, duration, 0, Easing.BACK_OUT, enabled, 0, distance, 0, 1, -10, 0, 0, 1, .5, .5);
-  }
-
   public static final Set<String> ATTRIBUTES =
       Set.of(
           "translate-x",

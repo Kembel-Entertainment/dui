@@ -1,7 +1,7 @@
 package gg.kembel.dui.pack;
 
 import com.google.gson.*;
-import gg.kembel.dui.core.RendererProtocol;
+import gg.kembel.dui.core.*;
 import java.io.*;
 import java.nio.file.*;
 import java.security.*;
@@ -32,19 +32,71 @@ public final class PackGenerator {
         }
       }
     var effects = PackContribution.merge(contributions, additions);
+    var modules = new TreeMap<String, String>();
+    var glyphImages = new ArrayList<PackContribution.Glyph>();
+    var fonts = new TreeMap<String, BitmapFont>();
+    var features = new TreeSet<String>();
+    for (var contribution : contributions) {
+      contribution
+          .shaderModules()
+          .forEach(
+              (id, source) -> {
+                if (modules.putIfAbsent(id, source) != null)
+                  throw new IllegalArgumentException("Duplicate shader module " + id);
+              });
+      glyphImages.addAll(contribution.glyphs());
+      features.addAll(contribution.features());
+      for (var font : contribution.fonts())
+        if (fonts.putIfAbsent(font.id(), font) != null)
+          throw new IllegalArgumentException("Duplicate font: " + font.id());
+    }
+    var glyphBindings =
+        GlyphRegistry.bind(
+            glyphImages.stream().map(PackContribution.Glyph::specification).toList());
+
     var capabilities =
         new TreeSet<>(
             Set.of(
                 "native",
-                "effects-8",
+                "shader-components-v1",
                 "clips",
                 "motion-tracks",
                 "effects-32",
                 gg.kembel.dui.core.PlayerModelCodec.CAPABILITY));
-    for (var effect : effects) capabilities.add("effect:" + effect.id() + "@" + effect.code());
+    capabilities.add("rgba-raster-v1");
+    capabilities.addAll(features);
+    var playerRenderers =
+        PlayerRenderBinding.bind(
+            contributions.stream().flatMap(c -> c.playerRenderers().stream()).toList());
+    var shaders =
+        ShaderRegistry.bind(effects.stream().map(PackContribution.Shader::specification).toList());
     Files.createDirectories(output);
     try (var assets = new VanillaAssets(clientJar)) {
-      byte[] pack = CanvasPack.build(assets, additions, effects);
+      additions.put(
+          "assets/dui/shaders/include/player-renderers.glsl",
+          PlayerRendererPack.glsl(playerRenderers)
+              .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      fonts.put("dui:default", assets.bitmapFont());
+      var glyphPixels = new TreeMap<String, RasterImage>();
+      for (var glyph : glyphImages) {
+        var image = javax.imageio.ImageIO.read(new ByteArrayInputStream(glyph.png()));
+        if (image == null) throw new IOException("Invalid glyph PNG");
+        glyphPixels.put(
+            glyph.specification().id(),
+            RasterImage.argb(
+                image.getWidth(),
+                image.getHeight(),
+                image.getRGB(
+                    0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth())));
+      }
+      var definitions = contributions.stream().flatMap(c -> c.worldMaps().stream()).toList();
+      var worldMaps =
+          WorldMapPack.prepare(assets, additions, definitions, glyphImages, glyphBindings);
+      if (worldMaps.enabled())
+        capabilities.add(gg.kembel.dui.core.world.WorldMapProtocol.CAPABILITY);
+      byte[] pack =
+          CanvasPack.build(
+              assets, additions, effects, worldMaps, modules, glyphImages, glyphBindings);
       var sorted = new TreeMap<String, byte[]>();
       try (var zip = new ZipInputStream(new ByteArrayInputStream(pack))) {
         for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry())
@@ -78,25 +130,53 @@ public final class PackGenerator {
                   .setPrettyPrinting()
                   .create()
                   .toJson(
-                      Map.of(
-                          "protocolVersion",
-                          RendererProtocol.VERSION,
-                          "capabilities",
-                          capabilities,
-                          "codecHash",
-                          RendererProtocol.SCHEMA_SHA256,
-                          "minecraftVersion",
-                          "26.2",
-                          "libraryVersion",
-                          "0.1.0-SNAPSHOT",
-                          "sha1",
-                          sha1,
-                          "models",
-                          models,
-                          "fontMetrics",
-                          assets.metrics()))
+                      JsonParser.parseString(
+                          WorldMapPack.encode(
+                              metadata(
+                                  capabilities,
+                                  sha1,
+                                  models,
+                                  assets.metrics(),
+                                  worldMaps,
+                                  shaders,
+                                  glyphBindings,
+                                  fonts,
+                                  glyphPixels,
+                                  playerRenderers))))
               + "\n");
     }
+  }
+
+  private static Map<String, Object> metadata(
+      Set<String> capabilities,
+      String sha1,
+      Set<String> models,
+      Map<String, Integer> metrics,
+      WorldMapPack.Result maps,
+      Map<String, ShaderBinding> shaders,
+      Map<String, GlyphBinding> glyphs,
+      Map<String, BitmapFont> fonts,
+      Map<String, RasterImage> glyphPixels,
+      Map<String, PlayerRenderBinding> playerRenderers) {
+    var result = new TreeMap<String, Object>();
+    result.put("protocolVersion", RendererProtocol.VERSION);
+    result.put("capabilities", capabilities);
+    result.put("codecHash", RendererProtocol.SCHEMA_SHA256);
+    result.put("minecraftVersion", "26.2");
+    result.put("libraryVersion", "0.2.0-SNAPSHOT");
+    result.put("sha1", sha1);
+    result.put("models", models);
+    result.put("shaders", shaders);
+    result.put("glyphs", glyphs);
+    result.put("playerRenderers", playerRenderers);
+    result.put("bitmapFonts", fonts);
+    result.put("glyphPixels", glyphPixels);
+    result.put("fontMetrics", metrics);
+    if (maps.enabled()) {
+      result.put("worldMaps", maps.maps());
+      result.put("worldMapLegendMetrics", maps.legendMetrics());
+    }
+    return result;
   }
 
   public static void main(String[] args) throws Exception {

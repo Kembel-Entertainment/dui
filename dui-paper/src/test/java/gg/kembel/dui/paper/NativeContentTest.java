@@ -12,9 +12,9 @@ class NativeContentTest {
   @Test
   void headElementsBindToNativeProfilesAndRemainWithinTheirRows() throws Exception {
     var template =
-        MenuTemplate.parse(
+        TestEnvironment.parse(
             "<dui-menu width='240' height='36'><dui-column><dui-head player='{{player}}'"
-                + " hat='false' label='Viewer'/><dui-entry"
+                + " hat='false' label='Viewer'/><dui-head"
                 + " player='uuid:93c30a8c-3e31-4c22-ae48-8b769dc1236a' label='Friend'"
                 + " height='18'/></dui-column></dui-menu>");
     var canvas = template.render(Map.of("player", "serkem"));
@@ -32,7 +32,8 @@ class NativeContentTest {
 
   @Test
   void skinTextureAndHatLayerUseNativeObjects() {
-    var canvas = new Canvas(240, 18);
+    var canvas =
+        new Canvas(240, 18, RenderEnvironment.plain(new GlyphFont(java.util.Map.of("?", 6))));
     canvas.head(0, 0, "texture:minecraft:entity/player/slim/alex", false);
     var head =
         (PlayerHeadObjectContents)
