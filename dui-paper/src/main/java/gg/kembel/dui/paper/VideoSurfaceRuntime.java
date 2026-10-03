@@ -1,11 +1,14 @@
 package gg.kembel.dui.paper;
 
 import gg.kembel.dui.core.video.*;
+import gg.kembel.dui.core.world.WorldMapGeometry;
+import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.*;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.*;
@@ -21,6 +24,7 @@ final class VideoSurfaceRuntime implements Listener, AutoCloseable {
   private final Map<UUID, VideoSurfaceSession> sessions = new HashMap<>();
   private final Map<UUID, int[]> reservations = new HashMap<>();
   private BukkitTask ticker;
+  private long tick;
   VideoSurfaceRuntime(Dui owner, JavaPlugin plugin, PackMetadata metadata) {
     this.owner = owner; this.plugin = plugin; this.metadata = metadata;
     plugin.getServer().getPluginManager().registerEvents(this, plugin);
@@ -29,6 +33,7 @@ final class VideoSurfaceRuntime implements Listener, AutoCloseable {
     closeViewer(player, true); var s = new VideoSurfaceSession(this, player, spec, options, input);
     sessions.put(player.getUniqueId(), s);
     if (ticker == null) ticker = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+      tick++;
       for (var current : List.copyOf(sessions.values())) current.tick();
     }, 1, 1);
     if (owner.packLoaded(player)) s.begin(); else owner.offerPack(player);
@@ -60,6 +65,7 @@ final class VideoSurfaceRuntime implements Listener, AutoCloseable {
   }
   @EventHandler(priority = EventPriority.HIGHEST) public void slot(PlayerItemHeldEvent e) {
     var s = active(e.getPlayer()); if (s == null) return; e.setCancelled(true);
+    if (s.capturesWheel()) { s.scrollPointer(WorldMapGeometry.slotDelta(e.getPreviousSlot(), e.getNewSlot())); return; }
     s.emit(new SurfaceInput(SurfaceInput.Type.SLOT, false, false, false, false, false, false, false, e.getNewSlot(), System.nanoTime()));
   }
   @EventHandler public void dismount(EntityDismountEvent e) { if (e.getEntity() instanceof Player p) { var s = active(p); if (s != null && s.mountedOn(e.getDismounted())) s.finish(true); } }
@@ -68,6 +74,15 @@ final class VideoSurfaceRuntime implements Listener, AutoCloseable {
   @EventHandler public void drop(PlayerDropItemEvent e) { if (active(e.getPlayer()) != null) e.setCancelled(true); }
   @EventHandler public void swap(PlayerSwapHandItemsEvent e) { if (active(e.getPlayer()) != null) e.setCancelled(true); }
   @EventHandler public void interact(PlayerInteractEvent e) { if (active(e.getPlayer()) != null) e.setCancelled(true); }
+  @EventHandler(priority = EventPriority.HIGHEST) public void attackPointer(PrePlayerAttackEntityEvent e) {
+    var s = active(e.getPlayer()); if (s == null) return;
+    e.setCancelled(true); s.clickPointer(e.getAttacked(), false, tick);
+  }
+  @EventHandler(priority = EventPriority.HIGHEST) public void interactPointer(PlayerInteractEntityEvent e) {
+    var s = active(e.getPlayer()); if (s == null) return;
+    e.setCancelled(true); if (e.getHand() == EquipmentSlot.HAND) s.clickPointer(e.getRightClicked(), true, tick);
+  }
+  @EventHandler(priority = EventPriority.HIGHEST) public void interactAtPointer(PlayerInteractAtEntityEvent e) { interactPointer(e); }
   @EventHandler public void click(InventoryClickEvent e) { if (e.getWhoClicked() instanceof Player p && active(p) != null) e.setCancelled(true); }
   @EventHandler public void drag(InventoryDragEvent e) { if (e.getWhoClicked() instanceof Player p && active(p) != null) e.setCancelled(true); }
   @Override public void close() { for (var s : List.copyOf(sessions.values())) s.finish(true); workers.shutdownNow(); reservations.clear(); HandlerList.unregisterAll(this); }

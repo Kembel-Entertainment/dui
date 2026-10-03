@@ -30,6 +30,11 @@ public final class VideoSurfaceSession implements AutoCloseable {
   private Location original;
   private int originalSlot;
   private ItemDisplay seat;
+  private Interaction pointerTarget;
+  private Consumer<SurfacePointerInput> pointer;
+  private boolean pointerWheel;
+  private float lastYaw, lastPitch;
+  private long lastPrimaryTick = -1, lastSecondaryTick = -1;
   private WorldMapClientAppearance appearance;
   private Runnable closed = () -> {};
   private final BossBar hud = BossBar.bossBar(Component.empty(), 0, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS);
@@ -43,6 +48,19 @@ public final class VideoSurfaceSession implements AutoCloseable {
   }
   public boolean isActive() { return active; }
   public boolean isStarted() { return started; }
+  /** Opt into Vanilla look/click/scroll capture; applications own all cursor coordinates and bindings. */
+  public VideoSurfaceSession pointerInput(Consumer<SurfacePointerInput> handler) {
+    return pointerInput(handler, true);
+  }
+  /** When captureWheel is true, slot pulses become SCROLL instead of SurfaceInput.SLOT. */
+  public VideoSurfaceSession pointerInput(Consumer<SurfacePointerInput> handler, boolean captureWheel) {
+    runtime.owner.mainThread(); pointer = Objects.requireNonNull(handler); pointerWheel = captureWheel;
+    var location = player.getLocation(); lastYaw = location.getYaw(); lastPitch = location.getPitch();
+    if (active && started && pointerTarget == null)
+      try { createPointerTarget(); } catch (RuntimeException error) { runtime.failure(this, error); }
+    return this;
+  }
+  boolean capturesWheel() { return pointer != null && pointerWheel; }
   public VideoSurfaceSpec specification() { return spec; }
   public VideoSurfaceSession onClose(Runnable callback) { runtime.owner.mainThread(); closed = Objects.requireNonNull(callback); if (!active) closed.run(); return this; }
   public void hud(WorldHud presentation) { runtime.owner.mainThread(); if (active) hud.name(hudRenderer.render(presentation)); }
@@ -105,12 +123,44 @@ public final class VideoSurfaceSession implements AutoCloseable {
       player.getInventory().setHeldItemSlot(options.anchorSlot());
       int tileCount = MapVideoCodec.encode(spec, new VideoFrame(spec.width(), spec.height(), spec.format(), 0, new int[spec.width() * spec.height()])).size();
       bridge = new MapVideoBridge(player, runtime.reserve(player, tileCount), this::fail);
-      started = true; player.showBossBar(hud); schedule(0);
+      started = true; if (pointer != null) createPointerTarget(); player.showBossBar(hud); schedule(0);
     } catch (Exception error) { runtime.failure(this, error); }
   }
   void emit(SurfaceInput event) { if (active && started) try { input.accept(event); } catch (RuntimeException e) { runtime.failure(this, e); } }
+  private void createPointerTarget() {
+    pointerTarget = player.getWorld().spawn(player.getEyeLocation().add(0, -2, 0), Interaction.class, e -> {
+      e.setVisibleByDefault(false); e.setPersistent(false); e.setGravity(false); e.setInvulnerable(true);
+      e.setInteractionWidth(4); e.setInteractionHeight(4); e.setResponsive(true);
+    });
+    player.showEntity(runtime.plugin, pointerTarget);
+    var location = player.getLocation(); lastYaw = location.getYaw(); lastPitch = location.getPitch();
+  }
+  private void look() {
+    if (pointer == null || !active || !started) return;
+    var location = player.getLocation();
+    double yaw = WorldMapGeometry.relativeYaw(location.getYaw(), lastYaw), pitch = location.getPitch() - lastPitch;
+    lastYaw = location.getYaw(); lastPitch = location.getPitch();
+    if (yaw != 0 || pitch != 0) point(new SurfacePointerInput(SurfacePointerInput.Type.LOOK, yaw, pitch, 0, System.nanoTime()));
+  }
+  void clickPointer(Entity target, boolean secondary, long tick) {
+    if (pointer == null || pointerTarget == null || target != pointerTarget || !active || !started) return;
+    if ((secondary ? lastSecondaryTick : lastPrimaryTick) == tick) return;
+    if (secondary) lastSecondaryTick = tick; else lastPrimaryTick = tick;
+    look();
+    point(new SurfacePointerInput(secondary ? SurfacePointerInput.Type.SECONDARY : SurfacePointerInput.Type.PRIMARY, 0, 0, 0, System.nanoTime()));
+  }
+  void scrollPointer(int steps) {
+    look(); if (steps != 0) point(new SurfacePointerInput(SurfacePointerInput.Type.SCROLL, 0, 0, steps, System.nanoTime()));
+  }
+  private void point(SurfacePointerInput event) {
+    if (active && started && pointer != null) try { pointer.accept(event); }
+    catch (RuntimeException e) { runtime.failure(this, e); }
+  }
   boolean mountedOn(Entity e) { return e == seat; }
-  void tick() { if (started && (!player.isOnline() || player.isDead() || seat == null || !seat.isValid() || player.getVehicle() != seat)) finish(!player.isDead()); }
+  void tick() {
+    if (started && (!player.isOnline() || player.isDead() || seat == null || !seat.isValid() || player.getVehicle() != seat)) finish(!player.isDead());
+    else look();
+  }
   void finish(boolean restore) {
     if (!active) return;
     active = false; mailbox.close(); runtime.remove(this);
@@ -119,6 +169,7 @@ public final class VideoSurfaceSession implements AutoCloseable {
     player.hideBossBar(hud);
     if (appearance != null) appearance.close();
     if (seat != null) { seat.remove(); seat = null; }
+    if (pointerTarget != null) { pointerTarget.remove(); pointerTarget = null; }
     if (original != null && player.isOnline() && !player.isDead()) {
       player.getInventory().setHeldItemSlot(originalSlot);
       if (restore) { ownTeleport = true; try { player.teleport(original); } finally { ownTeleport = false; } }

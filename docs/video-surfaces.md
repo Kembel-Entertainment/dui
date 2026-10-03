@@ -58,7 +58,35 @@ one connection. They are not persistent map objects or entities in a world.
 Paper `PlayerInputEvent` supplies held logical forward/backward/left/right/jump/sneak/sprint
 flags. Their physical bindings depend on the client's settings. Slot-change events are
 pulses; the configured anchor slot is restored, and the consumer interprets slots itself.
-No vanilla protocol provides arbitrary keyboard keys or raw mouse-wheel deltas.
+For pointer-driven applications, opt in on the Paper thread:
+
+```java
+session.pointerInput(event -> {
+  switch (event.type()) {
+    case LOOK -> cursor.move(event.deltaYaw(), event.deltaPitch());
+    case PRIMARY -> app.click();
+    case SECONDARY -> app.controls();
+    case SCROLL -> app.scroll(event.scrollSteps());
+  }
+});
+```
+
+`SurfacePointerInput` contains relative angles in degrees, a signed shortest-path slot
+step, and a monotonic `nanoTime`. LOOK is sampled on the Paper tick; clicks/scroll flush
+the latest look first. The library creates a viewer-private invisible Interaction target
+and removes it with the session. Duplicate attack/interact callbacks in one tick are
+coalesced per button. These are press pulses; releases and dragging are not captured.
+The consumer owns pointer coordinates, sensitivity, scrolling distance and button policy.
+
+Wheel capture replaces `SurfaceInput.SLOT`. Use `pointerInput(handler, false)` to retain
+slot bindings alongside look/click events. Existing sessions without pointer registration
+retain their input behavior and create no pointer target. Register before submitting
+frames when the resource pack can defer startup. No new shader or pack is needed.
+
+No Vanilla protocol provides arbitrary keyboard keys, an absolute OS pointer or raw
+mouse-wheel deltas. Pitch remains camera-bounded. Wheel interpretation uses the shortest
+path around the nine-slot ring (including 8→0 and 0→8); number keys are indistinguishable
+and large bursts cannot be reconstructed exactly.
 
 A private seat holds the player in place. The normal player camera stays active because Vanilla gates keyboard polling on it.
 The map shader projects quads directly to the screen; consumer HUD surfaces can cover native
@@ -98,7 +126,7 @@ Bundling, compression and connection-local appearance masks still run in the nor
 and last accepted sequence. Byte counts exclude transport compression and framing overhead.
 Actual client texture uploads, render rate, bandwidth and latency still constrain performance.
 This packet/reflection bridge is pinned to Paper 26.2; test it on version upgrades.
-Audio transport and arbitrary mouse/key capture are outside this component.
+Audio transport and arbitrary keyboard/desktop mouse capture are outside this component.
 
 The palette constants and two-probe inverse table can be reproduced against the official
 client JAR with `python3 scripts/generate-video-protocol.py --minecraft-jar /path/to/client.jar

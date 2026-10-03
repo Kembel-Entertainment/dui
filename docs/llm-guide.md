@@ -40,7 +40,9 @@ Camera maps use `WorldMapDefinition` build inputs and runtime `WorldMapFrame(...
 
 Video surfaces use consumer `dui-video` templates, `VideoSurfaceSpec` and immutable `VideoFrame`
 buffers. `Dui.openVideoSurface` owns a bounded latest-frame mailbox, viewer-private map packets,
-palette-symbol decoding and logical held/slot inputs. It does not own emulation, game controls,
+palette-symbol decoding, logical held/slot inputs and optional `pointerInput` look/click/scroll
+pulses. Consumers map the relative degrees to their own cursor coordinates; wheel pulses
+are hotbar deltas and indistinguishable from number keys. It does not own emulation, game controls,
 save files or source artwork. Only submit/read-statistics operations may run off the Paper thread.
 RGB888 preserves full color; this is distinct from the dialog raster budget and map images in
 resource packs. Keep the ordinary player camera for Vanilla keyboard input; F1 remains a client
