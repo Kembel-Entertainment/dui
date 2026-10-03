@@ -64,7 +64,7 @@ vec4 acmeRing(vec2 q, vec2 size, DUI_PARAMETERS p, float t, bool live) {
 }
 ```
 
-The generator replaces `DUI_PARAMETERS` with a typed struct and emits matching decoders. INTEGER/ENUM fields become int, BOOLEAN becomes bool, DECIMAL float, RGB vec3 in 0..1. `q` is local GUI coordinate, `size` allocated bounds, `t` age in seconds and `live` indicates active motion. Return straight-alpha RGBA. Honor `live=false`; application-specific still poses belong in your function.
+The generator replaces `DUI_PARAMETERS` with a typed struct and emits matching decoders. INTEGER/ENUM fields become int, BOOLEAN becomes bool, DECIMAL float, RGB vec3 in 0..1. `q` is local GUI coordinate, `size` allocated bounds, `t` age in seconds and `live` indicates active motion. The renderer clips each invocation to `0 <= q < size`, after applying inverse generic motion, so an opaque shader cannot paint neighboring components. Allocate a larger rectangle when an animation needs more room. Return straight-alpha RGBA. Honor `live=false`; application-specific still poses belong in your function.
 
 ```java
 var shader = new PackContribution.Shader(spec, "acmeRing", glslSource);

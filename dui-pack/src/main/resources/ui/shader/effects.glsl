@@ -30,6 +30,9 @@ vec4 shaderEffects(vec2 point,float age,int flags){
             q=mat2(cos(angle),-sin(angle),sin(angle),cos(angle))*(q-pivot*size-shift)/scale+pivot*size;
             cursor+=DUI_SHADER_MOTION_BITS;
         }
+        // Each invocation owns its local rectangle, including after inverse motion.
+        // Opaque consumer shaders must never cover adjacent components or controls.
+        if(any(lessThan(q,vec2(0))) || any(greaterThanEqual(q,size)))continue;
         vec4 c=duiShaderPixel(q,size,code,parameters,moving&&live?max(0.0,age):100.0,moving&&live);c.a*=clamp(alpha,0.0,1.0);
         float a=c.a+result.a*(1.0-c.a);
         result=vec4((c.rgb*c.a+result.rgb*result.a*(1.0-c.a))/max(a,.00001),a);
