@@ -9,6 +9,19 @@ import org.junit.jupiter.api.Test;
 
 class PackMetadataTest {
   @Test
+  void videoOnlyMetadataNeedsSharedHudMetricsButNoMapDefinitions() {
+    var base = TestMetadata.create("26.2", "0.2.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6));
+    var gson = new com.google.gson.Gson();
+    var json = gson.toJsonTree(base).getAsJsonObject();
+    json.getAsJsonArray("capabilities").add(gg.kembel.dui.core.video.MapVideoCodec.CAPABILITY);
+    assertThrows(RuntimeException.class, () -> gson.fromJson(json, PackMetadata.class));
+    json.add("worldMapLegendMetrics", gson.toJsonTree(Map.of("?", 6)));
+    var video = gson.fromJson(json, PackMetadata.class);
+    assertTrue(video.worldMaps().isEmpty());
+    assertDoesNotThrow(() -> new GlyphFont(video.worldMapLegendMetrics()));
+  }
+
+  @Test
   void serializedShaderSchemaFingerprintsAndRuntimeBindingsMustMatch() {
     var spec = new ShaderSpec("external:decoration", List.of(ShaderSpec.Parameter.rgb("tint")));
     var base =

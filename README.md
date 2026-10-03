@@ -47,3 +47,5 @@ Renderer and world-map protocols are version 4. Parameter schemas, addresses, ge
 Technical geometry, signatures, units and capacity limits remain fixed to the supported Minecraft version. These are renderer contracts, not application design. Details and validation limits are in [rendering](docs/rendering.md), [world maps](docs/world-map.md), and [compatibility](docs/compatibility.md). Code is [MIT](LICENSE); see [third-party notices](THIRD_PARTY_NOTICES.md) for vanilla-derived build inputs.
 
 See [dynamic composition](docs/dynamic-composition.md) for measured/typed components, shared group geometry, RGBA/fonts, keyframes, runtime map layers, registered model cameras and trusted Paper backend extensions. Renderer/world-map protocol 4 packs must be rebuilt together with metadata.
+
+Experimental dynamic pixel streaming: [video surfaces](docs/video-surfaces.md).

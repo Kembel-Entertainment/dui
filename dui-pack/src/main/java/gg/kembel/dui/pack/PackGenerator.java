@@ -64,6 +64,7 @@ public final class PackGenerator {
                 "effects-32",
                 gg.kembel.dui.core.PlayerModelCodec.CAPABILITY));
     capabilities.add("rgba-raster-v1");
+    capabilities.add(gg.kembel.dui.core.video.MapVideoCodec.CAPABILITY);
     capabilities.addAll(features);
     var playerRenderers =
         PlayerRenderBinding.bind(
@@ -147,7 +148,7 @@ public final class PackGenerator {
     }
   }
 
-  private static Map<String, Object> metadata(
+  static Map<String, Object> metadata(
       Set<String> capabilities,
       String sha1,
       Set<String> models,
@@ -172,9 +173,9 @@ public final class PackGenerator {
     result.put("bitmapFonts", fonts);
     result.put("glyphPixels", glyphPixels);
     result.put("fontMetrics", metrics);
+    result.put("worldMapLegendMetrics", maps.legendMetrics());
     if (maps.enabled()) {
       result.put("worldMaps", maps.maps());
-      result.put("worldMapLegendMetrics", maps.legendMetrics());
     }
     return result;
   }

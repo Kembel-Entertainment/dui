@@ -234,10 +234,8 @@ public final class WorldMapPack {
     }
     geometry.append("return false;}\n");
     Map<String, Integer> legend =
-        maps.isEmpty()
-            ? Map.of()
-            : WorldMapLegendPack.generate(vanilla, generated, contributedGlyphs, glyphBindings);
-    if (!maps.isEmpty()) {
+        WorldMapLegendPack.generate(vanilla, generated, contributedGlyphs, glyphBindings);
+    { // Shared HUD and inert geometry also support a video-only application.
       generated.put(
           "assets/dui/shaders/include/world-map-geometry.glsl",
           geometry.toString().getBytes(StandardCharsets.UTF_8));

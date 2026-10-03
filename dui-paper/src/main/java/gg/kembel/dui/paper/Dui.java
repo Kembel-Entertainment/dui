@@ -31,6 +31,7 @@ public final class Dui implements Listener, AutoCloseable {
   private final Set<UUID> ready = new HashSet<>(), offered = new HashSet<>();
   private boolean stopped;
   private final WorldMapRuntime worldMaps;
+  private final VideoSurfaceRuntime videoSurfaces;
   private final Map<String, BodyBackend> backends = new HashMap<>();
 
   public void registerBackend(String id, BodyBackend backend) {
@@ -55,6 +56,7 @@ public final class Dui implements Listener, AutoCloseable {
     mainThread();
     plugin.getServer().getPluginManager().registerEvents(this, plugin);
     worldMaps = new WorldMapRuntime(this, plugin, metadata);
+    videoSurfaces = new VideoSurfaceRuntime(this, plugin, metadata);
   }
 
   public static Dui create(JavaPlugin plugin, PackDescriptor pack, PackMetadata metadata) {
@@ -190,6 +192,7 @@ public final class Dui implements Listener, AutoCloseable {
     mainThread();
     validate(canvas, model);
     worldMaps.closeViewer(player, true);
+    videoSurfaces.closeViewer(player, true);
     var previous = sessions.get(player.getUniqueId());
     if (previous != null) dismiss(previous, false);
     var session = new DialogSession(this, player);
@@ -214,7 +217,29 @@ public final class Dui implements Listener, AutoCloseable {
     frame.validate(map.definition());
     var previous = sessions.get(player.getUniqueId());
     if (previous != null) dismiss(previous, true);
+    videoSurfaces.closeViewer(player, true);
     return worldMaps.open(player, map, frame, options, handler);
+  }
+
+  /** Open a runtime pixel stream. submit() accepts provider threads; all other lifecycle methods are main-thread. */
+  public VideoSurfaceSession openVideoSurface(org.bukkit.entity.Player player,
+      gg.kembel.dui.core.video.VideoSurfaceSpec spec, VideoSurfaceOptions options,
+      java.util.function.Consumer<gg.kembel.dui.core.video.SurfaceInput> input) {
+    mainThread();
+    java.util.Objects.requireNonNull(spec); java.util.Objects.requireNonNull(options); java.util.Objects.requireNonNull(input);
+    if (!metadata.supports(gg.kembel.dui.core.video.MapVideoCodec.CAPABILITY))
+      throw new IllegalArgumentException("Pack lacks map-video-v1; rebuild it with matching dui");
+    worldMaps.closeViewer(player, true);
+    var dialog = sessions.get(player.getUniqueId()); if (dialog != null) dismiss(dialog, true);
+    return videoSurfaces.open(player, spec, options, input);
+  }
+
+  public gg.kembel.dui.core.video.VideoSurfaceTemplate compileVideoSurface(
+      String name, String xml, ComponentRegistry components) {
+    mainThread();
+    return gg.kembel.dui.core.video.VideoSurfaceTemplate.parse(xml,
+        RenderEnvironment.plain(new GlyphFont(metadata.worldMapLegendMetrics()))
+            .withResources(metadata.bitmapFonts(), metadata.glyphPixels()), components, name);
   }
 
   void clearCallbacks(DialogSession session) {
@@ -364,6 +389,7 @@ public final class Dui implements Listener, AutoCloseable {
     if (event.getStatus() == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
       ready.add(id);
       worldMaps.loaded(event.getPlayer());
+      videoSurfaces.loaded(event.getPlayer());
       var session = sessions.get(id);
       if (session != null && session.active) display(session);
     } else if (Set.of("DECLINED", "FAILED_DOWNLOAD", "FAILED_RELOAD", "INVALID_URL", "DISCARDED")
@@ -371,6 +397,7 @@ public final class Dui implements Listener, AutoCloseable {
       ready.remove(id);
       offered.remove(id);
       worldMaps.closeViewer(event.getPlayer(), true);
+      videoSurfaces.closeViewer(event.getPlayer(), true);
       var s = sessions.get(id);
       if (s != null) dismiss(s, false);
       event
@@ -412,6 +439,7 @@ public final class Dui implements Listener, AutoCloseable {
   public void quit(PlayerQuitEvent event) {
     var id = event.getPlayer().getUniqueId();
     worldMaps.closeViewer(event.getPlayer(), false);
+    videoSurfaces.quit(event.getPlayer());
     var s = sessions.get(id);
     if (s != null) dismiss(s, false);
     ready.remove(id);
@@ -424,6 +452,7 @@ public final class Dui implements Listener, AutoCloseable {
     if (stopped) return;
     mainThread();
     worldMaps.close();
+    videoSurfaces.close();
     for (var s : List.copyOf(sessions.values())) dismiss(s, true);
     HandlerList.unregisterAll(this);
     callbacks.clear();

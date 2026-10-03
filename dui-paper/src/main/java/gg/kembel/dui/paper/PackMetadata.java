@@ -178,8 +178,9 @@ public record PackMetadata(
     for (var entry : worldMaps.entrySet())
       if (!entry.getKey().equals(entry.getValue().definition().id()))
         throw new IllegalArgumentException("Map id mismatch");
-    if (!worldMaps.isEmpty() && (!worldMapLegendMetrics.containsKey("?")))
-      throw new IllegalArgumentException("Missing map legend metrics");
+    if ((!worldMaps.isEmpty() || capabilities.contains(gg.kembel.dui.core.video.MapVideoCodec.CAPABILITY))
+        && !worldMapLegendMetrics.containsKey("?"))
+      throw new IllegalArgumentException("Missing world/video HUD font metrics");
     models = Set.copyOf(models);
     fontMetrics = Map.copyOf(fontMetrics);
     new GlyphFont(fontMetrics);

@@ -56,21 +56,44 @@ public final class FocusGuard {
         zip,
         "assets/dui/font/focus_guard.json",
         ("{\"providers\":[" + provider + "]}").getBytes(StandardCharsets.UTF_8));
+    for (String name : new String[] {"symbols", "vertex", "fragment"})
+      try (var in = FocusGuard.class.getResourceAsStream("/ui/shader/video-" + name + ".glsl")) {
+        put(zip, "assets/dui/shaders/include/video-" + name + ".glsl",
+            java.util.Objects.requireNonNull(in).readAllBytes());
+      }
     for (String ext : new String[] {"vsh", "fsh"})
       try (var in = FocusGuard.class.getResourceAsStream("/ui/shader/text." + ext)) {
         put(
             zip,
             "assets/minecraft/shaders/core/text." + ext,
-            shader(ext, java.util.Objects.requireNonNull(in).readAllBytes(), worldMaps));
+            shader(ext, java.util.Objects.requireNonNull(in).readAllBytes()));
       }
   }
 
-  private static byte[] shader(String ext, byte[] bytes, boolean worldMaps) throws IOException {
+  private static byte[] shader(String ext, byte[] bytes) throws IOException {
+    String source = new String(baseShader(ext, bytes), StandardCharsets.UTF_8);
     if (ext.equals("vsh")) {
-      if (!worldMaps)
-        return new String(bytes, StandardCharsets.UTF_8)
-            .replace("// PLAYER_RENDERERS", "#moj_import <dui:player-renderers.glsl>")
-            .getBytes(StandardCharsets.UTF_8);
+      source = source.replace("out vec2 texCoord0;", "out vec2 texCoord0;\n"
+          + "flat out int duiVideoFormat;flat out int duiVideoBackground;"
+          + "flat out ivec2 duiVideoSize;out vec2 duiVideoPoint;\n");
+      String helpers = "#ifndef IS_GUI\n"
+          + "#moj_import <dui:video-vertex.glsl>\n#endif\n";
+      source = source.replace("void main() {", helpers + "void main() {\n"
+          + "duiVideoFormat=-1;duiVideoBackground=0;duiVideoSize=ivec2(0);duiVideoPoint=vec2(0);\n"
+          + "#ifndef IS_GUI\nif(duiVideoVertex())return;\n#endif\n");
+    } else {
+      source = source.replace("out vec4 fragColor;", "out vec4 fragColor;\n"
+          + "flat in int duiVideoFormat;flat in int duiVideoBackground;"
+          + "flat in ivec2 duiVideoSize;in vec2 duiVideoPoint;\n"
+          + "#moj_import <dui:video-fragment.glsl>\n");
+      source = source.replace("void main() {", "void main() {\n"
+          + "if(duiVideoFormat>=0){fragColor=duiVideoPixel();return;}\n");
+    }
+    return source.getBytes(StandardCharsets.UTF_8);
+  }
+
+  private static byte[] baseShader(String ext, byte[] bytes) throws IOException {
+    if (ext.equals("vsh")) {
       String source = new String(bytes, StandardCharsets.UTF_8);
       String imports =
           "#moj_import <minecraft:globals.glsl>\n"

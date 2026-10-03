@@ -74,6 +74,23 @@ class WorldMapPackTest {
   }
 
   @Test
+  void videoOnlyPackKeepsHudAssetsAndMetricsWithoutInventingAMap() throws Exception {
+    try (var vanilla = vanilla()) {
+      var result = WorldMapPack.prepare(vanilla, Map.of(), List.of());
+      assertFalse(result.enabled());
+      assertTrue(result.maps().isEmpty());
+      assertDoesNotThrow(() -> new gg.kembel.dui.core.GlyphFont(result.legendMetrics()));
+      assertTrue(result.generated().containsKey("assets/dui/font/world-hud/y_0.json"));
+      assertTrue(result.generated().containsKey("assets/dui/shaders/include/world-map-hud.glsl"));
+      var metadata = PackGenerator.metadata(
+          Set.of(gg.kembel.dui.core.video.MapVideoCodec.CAPABILITY), "a".repeat(40),
+          Set.of(), Map.of("?", 6), result, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+      assertEquals(result.legendMetrics(), metadata.get("worldMapLegendMetrics"));
+      assertFalse(metadata.containsKey("worldMaps"));
+    }
+  }
+
+  @Test
   void twoDifferentMapsHaveSeparateGeometryStampsAndExactAdvances() throws Exception {
     var a = map("example:first", 600);
     var b = map("example:second", 960);

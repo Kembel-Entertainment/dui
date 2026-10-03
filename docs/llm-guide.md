@@ -1,6 +1,6 @@
 # Guide for coding agents
 
-Use **dui 0.2.0-SNAPSHOT**, Java 25 and Paper/Minecraft 26.2 with one matching generated resource pack. This is a strict XML template engine, not HTML/CSS/JavaScript. Start with [quickstart](quickstart.md), [components](components.md) and [extensions](extensions.md). For transport work include [rendering](rendering.md); for camera maps include [world-map](world-map.md).
+Use **dui 0.2.0-SNAPSHOT**, Java 25 and Paper/Minecraft 26.2 with one matching generated resource pack. This is a strict XML template engine, not HTML/CSS/JavaScript. Start with [quickstart](quickstart.md), [components](components.md) and [extensions](extensions.md). For transport work include [rendering](rendering.md); for camera maps include [world-map](world-map.md); for changing pixel buffers include [video-surfaces](video-surfaces.md).
 
 ## Ownership rules
 
@@ -37,6 +37,14 @@ The backend has fixed phases and whole-object popup suppression, not arbitrary z
 ## Maps and verification
 
 Camera maps use `WorldMapDefinition` build inputs and runtime `WorldMapFrame(..., WorldHud)`. MAP/SCREEN spaces, depth, opening transform and opacity/pulse values are caller-owned. Build HUDs with `WorldHudTemplate` and explicit anchored surfaces; there is no bundled legend. `Dui.openWorldMap` owns the private seat/display/input entities and cleanup; consumers own dwell/permissions/navigation.
+
+Video surfaces use consumer `dui-video` templates, `VideoSurfaceSpec` and immutable `VideoFrame`
+buffers. `Dui.openVideoSurface` owns a bounded latest-frame mailbox, viewer-private map packets,
+palette-symbol decoding and logical held/slot inputs. It does not own emulation, game controls,
+save files or source artwork. Only submit/read-statistics operations may run off the Paper thread.
+RGB888 preserves full color; this is distinct from the dialog raster budget and map images in
+resource packs. Keep the ordinary player camera for Vanilla keyboard input; F1 remains a client
+choice. Measure visible changes separately from producer FPS and network send counts.
 
 Run library/consumer unit tests, deterministic pack generation and explicit muted real-client scenarios. Builds must not silently start Minecraft. Use published public APIs and fail clearly for unsupported features. Deploy plugin/ZIP/metadata together after review. No legacy preset/protocol compatibility is retained; follow migration-0.2.md.
 
