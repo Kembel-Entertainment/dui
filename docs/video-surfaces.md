@@ -78,6 +78,17 @@ avoid displaying partial frames. Changes are computed against the last accepted 
 frame, never a dropped frame. Under pressure a single latest frame replaces older ones;
 there is no unbounded queue. An unchanged picture causes no new map packets.
 
+Byte pacing charges each accepted frame's patch cost continuously. There are no
+one-second budget windows that send a burst followed by a long wait. The configured
+byte rate permits one initial frame and then spreads subsequent updates over time.
+`VideoSurfaceSpec.maximumFrameBytes()` estimates a conservative full-update cost;
+`sustainableFps()` is `min(maximumFps, bytesPerSecond / maximumFrameBytes)`. Producers
+can use that planning ceiling to avoid decoding frames they cannot transmit. Small
+patches can permit faster transport when a producer keeps the higher FPS limit.
+For example, RGB888 1024x576 uses 161 maps and about 2.64 MB for a full update:
+60 full updates/s need about 151 MiB/s before network compression. A 16 MiB/s
+budget supports approximately 6.35 full updates/s, regardless of source codec.
+
 The bridge writes only its private video bundles through the active connection's Netty
 pipeline and waits for each write completion. Paper's usual off-thread `Connection.send`
 queue would defer these packets to a server tick and limit the stream to about 20 Hz.

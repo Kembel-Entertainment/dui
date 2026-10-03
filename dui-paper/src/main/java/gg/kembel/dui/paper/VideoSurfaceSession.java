@@ -26,7 +26,7 @@ public final class VideoSurfaceSession implements AutoCloseable {
   private volatile boolean active = true, started;
   private volatile MapVideoBridge bridge;
   private volatile byte[][] lastSent;
-  private long nextSend, budgetStart, budgetBytes;
+  private final VideoPacer pacer;
   private Location original;
   private int originalSlot;
   private ItemDisplay seat;
@@ -38,6 +38,7 @@ public final class VideoSurfaceSession implements AutoCloseable {
   VideoSurfaceSession(VideoSurfaceRuntime runtime, Player player, VideoSurfaceSpec spec,
       VideoSurfaceOptions options, Consumer<SurfaceInput> input) {
     this.runtime = runtime; this.player = player; this.spec = spec; this.options = options; this.input = input;
+    pacer = new VideoPacer(spec.maximumFps(), spec.budget().bytesPerSecond());
     hudRenderer = new WorldMapHud(runtime.metadata.worldMapLegendMetrics(), runtime.metadata.glyphs());
   }
   public boolean isActive() { return active; }
@@ -62,7 +63,7 @@ public final class VideoSurfaceSession implements AutoCloseable {
     try {
       long now = System.nanoTime();
       if (!active || !started) return;
-      if (now < nextSend || bridge == null || !bridge.ready()) return;
+      if (now < pacer.nextSendNanos() || bridge == null || !bridge.ready()) return;
       frame = mailbox.poll(); if (frame == null) return;
       long begin = System.nanoTime();
       var tiles = MapVideoCodec.encode(spec, frame);
@@ -74,20 +75,15 @@ public final class VideoSurfaceSession implements AutoCloseable {
         if (patch != null) { count += (long) patch.width() * patch.height() + 32; packets.add(bridge.framePacket(i, patch)); }
       }
       encodeNanos.addAndGet(System.nanoTime() - begin);
-      if (now - budgetStart >= 1_000_000_000L) { budgetStart = now; budgetBytes = 0; }
-      if (budgetBytes + count > spec.budget().bytesPerSecond()) { nextSend = budgetStart + 1_000_000_000L; mailbox.restore(frame); return; }
       long acceptedSequence = frame.sequence(), acceptedBytes = count;
       if (packets.isEmpty()) { sequence.set(acceptedSequence); return; }
       if (bridge.sendFrame(packets, () -> { lastSent = next; sent.incrementAndGet(); bytes.addAndGet(acceptedBytes); sequence.set(acceptedSequence); }, this::fail)) {
-        budgetBytes += count;
-        long interval = Math.round(1_000_000_000d / spec.maximumFps());
-        // Keep a clock phase: resetting to 'now + interval' on every late wake loses FPS.
-        nextSend = nextSend == 0 || now - nextSend > interval * 2 ? now + interval : nextSend + interval;
+        pacer.accepted(System.nanoTime(), count);
       } else mailbox.restore(frame);
     } catch (Throwable error) { fail(error); }
     finally {
       scheduled.set(false);
-      if (active && mailbox.hasFrame()) schedule(Math.max(250_000L, nextSend - System.nanoTime()));
+      if (active && mailbox.hasFrame()) schedule(Math.max(250_000L, pacer.nextSendNanos() - System.nanoTime()));
     }
   }
   private void fail(Throwable error) {

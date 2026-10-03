@@ -37,4 +37,14 @@ public record VideoSurfaceSpec(int width, int height, PixelFormat format, double
     if (frame.width() != width || frame.height() != height || frame.format() != format)
       throw new IllegalArgumentException("Frame does not match surface");
   }
+  /** Conservative initial/full-update cost, including map packet allowance and edge textures. */
+  public long maximumFrameBytes() {
+    long columns = (width + 128 / format.symbols - 1) / (128 / format.symbols);
+    long rows = (height + 126) / 127;
+    return (columns * rows + 1) * (128 * 128 + 32);
+  }
+  /** Planning ceiling for a producer that must sustain full updates within its byte budget. */
+  public double sustainableFps() {
+    return Math.min(maximumFps, (double) budget.bytesPerSecond / maximumFrameBytes());
+  }
 }
