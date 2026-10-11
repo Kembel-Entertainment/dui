@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.bukkit.entity.Player;
 
 /** Version-pinned packet bridge. Never registers maps/entities in a world or changes gamemode. */
-final class MapVideoBridge implements AutoCloseable {
+final class MapVideoBridge implements gg.kembel.dui.runtime.MapVideoConnection {
   private static final String GAME = "net.minecraft.network.protocol.game.";
   private final Object channel;
   private final Executor eventLoop;
@@ -75,12 +75,12 @@ final class MapVideoBridge implements AutoCloseable {
       catch (Throwable error) { failure.accept(error); }
     });
   }
-  boolean ready() throws Exception { return !closed && !pending.get() && (boolean) writable.invoke(channel); }
-  Object framePacket(int index, MapVideoCodec.Patch p) throws Exception {
+  public boolean ready() throws Exception { return !closed && !pending.get() && (boolean) writable.invoke(channel); }
+  public Object framePacket(int index, MapVideoCodec.Patch p) throws Exception {
     return mapPacket.newInstance(mapId.newInstance(maps[index]), (byte) 0, true, List.of(),
         patch.newInstance(p.x(), p.y(), p.width(), p.height(), p.colors()));
   }
-  boolean sendFrame(List<Object> packets, Runnable success, java.util.function.Consumer<Throwable> failure) throws Exception {
+  public boolean sendFrame(List<Object> packets, Runnable success, java.util.function.Consumer<Throwable> failure) throws Exception {
     if (!ready() || !pending.compareAndSet(false, true)) return false;
     Object packet = bundle.newInstance(packets);
     eventLoop.execute(() -> {

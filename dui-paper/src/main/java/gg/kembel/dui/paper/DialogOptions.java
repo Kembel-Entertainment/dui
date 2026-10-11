@@ -36,4 +36,14 @@ public record DialogOptions(
     return new DialogOptions(
         Component.text(title), List.of(), List.of(), new Button(closeLabel, closeAction), 1, false);
   }
+
+  public gg.kembel.dui.runtime.DialogOptions portable() {
+    return new gg.kembel.dui.runtime.DialogOptions(title,
+        inputs.stream().map(i -> (gg.kembel.dui.runtime.DialogInput) new PaperDialogs.Input(i)).toList(),
+        buttons.stream().map(DialogOptions::portableButton).toList(),
+        exit == null ? null : portableButton(exit), columns, confirmation);
+  }
+  private static gg.kembel.dui.runtime.DialogOptions.Button portableButton(Button b) {
+    return new gg.kembel.dui.runtime.DialogOptions.Button(b.label(), b.action(), b.width());
+  }
 }

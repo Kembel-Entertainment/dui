@@ -22,4 +22,8 @@ public record PackDescriptor(UUID id, URI uri, String sha1, boolean required) {
         metadata.sha1(),
         false);
   }
+
+  public gg.kembel.dui.runtime.PackDescriptor portable() {
+    return new gg.kembel.dui.runtime.PackDescriptor(id, uri, sha1, required);
+  }
 }

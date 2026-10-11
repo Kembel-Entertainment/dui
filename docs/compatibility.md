@@ -1,11 +1,14 @@
 # Compatibility and release contract
 
-This is a source-reviewed WIP. Version **0.2.0-SNAPSHOT** deliberately breaks the old API/pack contract; see [migration](migration-0.2.md). There are no legacy preset aliases or protocol conversion paths.
+This is a source-reviewed WIP. Version **0.3.0-SNAPSHOT** requires rebuilt 26.3 packs and introduces a shared runtime with Paper and Minestom adapters; see [migration](migration-0.3.md). Existing Paper entry points remain available. There are no protocol conversion paths.
 
 | Layer | Contract |
 | --- | --- |
 | Java | 25 / release 25 |
-| Minecraft / Paper | Pinned Minecraft 26.2 input and Paper API/runtime build 129 |
+| Minecraft | Pinned official 26.3 client, resource-pack format 97.1 |
+| Paper | API/runtime 26.3.build.170-beta |
+| Minestom | Immutable official 26.3 snapshot 26_3-20261007.224755-10; published 26.2 release is incompatible |
+| Shared API | dui-runtime; platform-native values enter through adapter snapshots |
 | Renderer | Protocol 4, generated codec SHA-256, matching capability set |
 | World maps | Protocol 4, exact geometry/protocol hashes |
 | Shader components | Logical namespaced ID, exact ordered schema, SHA-256 fingerprint and pack-assigned address |

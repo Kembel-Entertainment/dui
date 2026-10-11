@@ -32,7 +32,7 @@ public final class VanillaAssets implements AutoCloseable {
       byte[] buffer = new byte[65536];
       for (int n; (n = in.read(buffer)) >= 0; ) digest.update(buffer, 0, n);
       if (!HexFormat.of().formatHex(digest.digest()).equals(expectedSha1))
-        throw new IOException("Client JAR is not the verified Minecraft 26.2 build");
+        throw new IOException("Client JAR is not the verified Minecraft " + gg.kembel.dui.core.MinecraftTarget.VERSION + " build");
     } catch (NoSuchAlgorithmException e) {
       throw new AssertionError(e);
     }

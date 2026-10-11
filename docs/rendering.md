@@ -1,6 +1,6 @@
 # How dui renders a canvas
 
-This document explains the current **dui 0.2.0-SNAPSHOT / Minecraft 26.2** rendering protocol. Supply it to a coding agent that needs to understand or extend the renderer. For application plugins, use [the public API guide](llm-guide.md) and [quickstart](quickstart.md). The glyph addresses, shader payload and native-widget offsets below are implementation details of this version.
+This document explains the current **dui 0.3.0-SNAPSHOT / Minecraft 26.3** rendering protocol. Supply it to a coding agent that needs to understand or extend the renderer. For application plugins, use [the public API guide](llm-guide.md) and [quickstart](quickstart.md). The glyph addresses, shader payload and native-widget offsets below are implementation details of this version.
 
 ## From template to client
 
@@ -110,7 +110,7 @@ Each line is emitted in this order:
 4. Draw background runtime images, then intersecting paints in insertion order, then foreground runtime images, head objects and full-body model bands. Each placement returns the pen to zero. Native item/effect carriers follow the text canvas.
 5. Advance to `canvas.width + 2` and append a newline unless this is the last line.
 
-The final positive advance gives the line enough intrinsic width for intermediate glyph positions, including bitmap glyphs' extra pixel. `Dui` supplies a plain-message wrap budget of `canvas.width + 12`, which accounts for the native widget's layout. These constants belong to the pinned 26.2 transport; changing them needs a real-client check.
+The final positive advance gives the line enough intrinsic width for intermediate glyph positions, including bitmap glyphs' extra pixel. `Dui` supplies a plain-message wrap budget of `canvas.width + 12`, which accounts for the native widget's layout. These constants belong to the pinned 26.3 transport; changing them needs a real-client check.
 
 A hit at `x=24, y=9, width=90, height=18` is repeated on the bands beginning at y=9 and y=18. With a 240-pixel canvas, each affected line has these positive segments before its rewind:
 

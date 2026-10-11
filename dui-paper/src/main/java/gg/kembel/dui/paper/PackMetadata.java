@@ -113,81 +113,16 @@ public record PackMetadata(
     return capabilities.contains(capability);
   }
 
-  public void validate(Canvas canvas) {
-    if (canvas.images.stream().anyMatch(i -> i.raster().hasAlpha()) && !supports("rgba-raster-v1"))
-      throw new IllegalArgumentException("Pack lacks rgba-raster-v1 capability");
-    if (!canvas.playerModels.isEmpty() && !supports(PlayerModelCodec.CAPABILITY))
-      throw new IllegalArgumentException(
-          "Pack lacks " + PlayerModelCodec.CAPABILITY + " capability");
-    for (var model : canvas.playerModels) {
-      var binding = playerRenderers.get(model.renderer());
-      if (binding == null
-          || binding.code() != model.rendererCode()
-          || model.viewportIndex() >= binding.specification().viewports().size()
-          || model.facing() >= binding.specification().poses().size())
-        throw new IllegalArgumentException("Model renderer metadata mismatch");
-      var viewport = binding.specification().viewports().get(model.viewportIndex());
-      if (viewport.width() != model.width() || viewport.height() != model.height())
-        throw new IllegalArgumentException("Model viewport mismatch");
-    }
-    for (var paint : canvas.paints)
-      if (paint.icon() != null) GlyphRegistry.require(glyphs, paint.icon());
-    for (var effect : canvas.effects) ShaderRegistry.require(shaders, effect.shader());
-    if (canvas.effects.size() > 8 && !supports("effects-32"))
-      throw new IllegalArgumentException("Pack lacks effects-32 capability");
-    if ((!canvas.motions.isEmpty() || !canvas.effectMotions.isEmpty())
-        && !supports("motion-tracks"))
-      throw new IllegalArgumentException("Pack lacks motion-tracks capability");
-  }
+  public void validate(Canvas canvas) { portable().validate(canvas); }
 
   public PackMetadata {
-    if (!"26.2".equals(minecraftVersion)
-        || !"0.2.0-SNAPSHOT".equals(libraryVersion)
-        || sha1 == null
-        || !sha1.matches("[a-f0-9]{40}"))
-      throw new IllegalArgumentException("Unsupported or invalid dui pack metadata");
-    if (protocolVersion != RendererProtocol.VERSION
-        || !RendererProtocol.SCHEMA_SHA256.equals(codecHash))
-      throw new IllegalArgumentException(
-          "Pack protocol/hash mismatch; rebuild the pack for dui 0.2");
-    capabilities = Set.copyOf(capabilities);
-    if (!capabilities.containsAll(
-        Set.of("native", "shader-components-v1", "clips", "motion-tracks", "effects-32")))
-      throw new IllegalArgumentException("Missing renderer capabilities");
-    glyphs = glyphs == null ? Map.of() : Map.copyOf(glyphs);
-    playerRenderers =
-        playerRenderers == null ? PlayerRenderBinding.bind(List.of()) : Map.copyOf(playerRenderers);
-    var addresses = new HashSet<Integer>();
-    for (var entry : playerRenderers.entrySet())
-      if (!entry.getKey().equals(entry.getValue().specification().id())
-          || !addresses.add(entry.getValue().code()))
-        throw new IllegalArgumentException("Model renderer binding collision");
-    bitmapFonts = bitmapFonts == null ? Map.of() : Map.copyOf(bitmapFonts);
-    glyphPixels = glyphPixels == null ? Map.of() : Map.copyOf(glyphPixels);
-    for (var entry : bitmapFonts.entrySet())
-      if (!entry.getKey().equals(entry.getValue().id()))
-        throw new IllegalArgumentException("Font metadata mismatch");
-    GlyphRegistry.validate(glyphs);
-    shaders = shaders == null ? Map.of() : Map.copyOf(shaders);
-    ShaderRegistry.validate(shaders);
-    worldMaps = worldMaps == null ? Map.of() : Map.copyOf(worldMaps);
-    worldMapLegendMetrics =
-        worldMapLegendMetrics == null ? Map.of() : Map.copyOf(worldMapLegendMetrics);
-    if (supportsWorldMaps(capabilities) != !worldMaps.isEmpty())
-      throw new IllegalArgumentException("Map capability/metadata mismatch");
-    for (var entry : worldMaps.entrySet())
-      if (!entry.getKey().equals(entry.getValue().definition().id()))
-        throw new IllegalArgumentException("Map id mismatch");
-    if ((!worldMaps.isEmpty() || capabilities.contains(gg.kembel.dui.core.video.MapVideoCodec.CAPABILITY))
-        && !worldMapLegendMetrics.containsKey("?"))
-      throw new IllegalArgumentException("Missing world/video HUD font metrics");
-    models = Set.copyOf(models);
-    fontMetrics = Map.copyOf(fontMetrics);
-    new GlyphFont(fontMetrics);
-  }
-
-  private static boolean supportsWorldMaps(Set<String> capabilities) {
-    return capabilities.contains(gg.kembel.dui.core.world.WorldMapProtocol.CAPABILITY);
+    var metadata = new gg.kembel.dui.runtime.PackMetadata(minecraftVersion, libraryVersion, sha1,
+        models, fontMetrics, protocolVersion, capabilities, codecHash, worldMaps,
+        worldMapLegendMetrics, shaders, glyphs, bitmapFonts, glyphPixels, playerRenderers);
+    models = metadata.models(); fontMetrics = metadata.fontMetrics(); capabilities = metadata.capabilities();
+    worldMaps = metadata.worldMaps(); worldMapLegendMetrics = metadata.worldMapLegendMetrics();
+    shaders = metadata.shaders(); glyphs = metadata.glyphs(); bitmapFonts = metadata.bitmapFonts();
+    glyphPixels = metadata.glyphPixels(); playerRenderers = metadata.playerRenderers();
   }
 
   public static PackMetadata read(Path path) throws IOException {
@@ -196,5 +131,11 @@ public record PackMetadata(
 
   public GlyphFont font() {
     return new GlyphFont(fontMetrics);
+  }
+
+  public gg.kembel.dui.runtime.PackMetadata portable() {
+    return new gg.kembel.dui.runtime.PackMetadata(minecraftVersion, libraryVersion, sha1, models,
+        fontMetrics, protocolVersion, capabilities, codecHash, worldMaps, worldMapLegendMetrics,
+        shaders, glyphs, bitmapFonts, glyphPixels, playerRenderers);
   }
 }

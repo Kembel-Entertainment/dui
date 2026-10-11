@@ -1,6 +1,6 @@
 # Guide for coding agents
 
-Use **dui 0.2.0-SNAPSHOT**, Java 25 and Paper/Minecraft 26.2 with one matching generated resource pack. This is a strict XML template engine, not HTML/CSS/JavaScript. Start with [quickstart](quickstart.md), [components](components.md) and [extensions](extensions.md). For transport work include [rendering](rendering.md); for camera maps include [world-map](world-map.md); for changing pixel buffers include [video-surfaces](video-surfaces.md).
+Use **dui 0.3.0-SNAPSHOT**, Java 25 and Paper/Minecraft 26.3 with one matching generated resource pack. This is a strict XML template engine, not HTML/CSS/JavaScript. Start with [quickstart](quickstart.md), [components](components.md) and [extensions](extensions.md). For transport work include [rendering](rendering.md); for camera maps include [world-map](world-map.md); for changing pixel buffers include [video-surfaces](video-surfaces.md).
 
 ## Ownership rules
 

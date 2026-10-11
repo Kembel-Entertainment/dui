@@ -1,6 +1,6 @@
 # Building applications with dui
 
-These examples target **dui 0.2.0-SNAPSHOT, Java 25 and Paper/Minecraft 26.2**. Start with the [complete plugin quickstart](quickstart.md). The recipes add application behaviour through the public API; they do not require renderer changes. See [components](components.md) for exact attributes/defaults and [the LLM guide](llm-guide.md) for lifecycle rules.
+These examples target **dui 0.3.0-SNAPSHOT, Java 25 and Paper/Minecraft 26.3**. Start with the [complete plugin quickstart](quickstart.md). The recipes add application behaviour through the public API; they do not require renderer changes. See [components](components.md) for exact attributes/defaults and [the LLM guide](llm-guide.md) for lifecycle rules.
 
 ## Checkbox and dropdown with application state
 

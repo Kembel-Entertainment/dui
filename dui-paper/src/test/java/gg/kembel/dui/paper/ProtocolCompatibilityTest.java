@@ -17,8 +17,8 @@ class ProtocolCompatibilityTest {
           IllegalArgumentException.class,
           () ->
               new PackMetadata(
-                  "26.2",
-                  "0.2.0-SNAPSHOT",
+                  "26.3",
+                  "0.3.0-SNAPSHOT",
                   "a".repeat(40),
                   Set.of(),
                   Map.of("?", 6),
@@ -29,8 +29,8 @@ class ProtocolCompatibilityTest {
         IllegalArgumentException.class,
         () ->
             new PackMetadata(
-                "26.2",
-                "0.2.0-SNAPSHOT",
+                "26.3",
+                "0.3.0-SNAPSHOT",
                 "a".repeat(40),
                 Set.of(),
                 Map.of("?", 6),
@@ -45,8 +45,8 @@ class ProtocolCompatibilityTest {
     var registry = ShaderRegistry.bind(List.of(spec));
     var metadata =
         new PackMetadata(
-            "26.2",
-            "0.2.0-SNAPSHOT",
+            "26.3",
+            "0.3.0-SNAPSHOT",
             "a".repeat(40),
             Set.of(),
             Map.of("?", 6),

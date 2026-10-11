@@ -8,7 +8,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
- * Paper 26.2 adapter: mask only this connection's self flags and hand inventory. No potion,
+ * Paper 26.3 adapter: mask only this connection's self flags and hand inventory. No potion,
  * gamemode, equipment or inventory is changed on the server. Keeping the mask in the outbound path
  * also prevents later inventory/flag sync flicker. Reflection keeps server internals isolated; this
  * is deliberately version pinned.

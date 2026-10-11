@@ -41,7 +41,7 @@ class PlayerAppearanceTest {
   @Test
   void packCapabilityIsRequired() {
     var old =
-        TestMetadata.create("26.2", "0.2.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6));
+        TestMetadata.create("26.3", "0.3.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6));
     var c = new Canvas(320, 180, RenderEnvironment.plain(new GlyphFont(java.util.Map.of("?", 6))));
     c.playerModel("hero", "viewer", 0, 0, 72, 108, 0, true, false);
     assertThrows(IllegalArgumentException.class, () -> old.validate(c));

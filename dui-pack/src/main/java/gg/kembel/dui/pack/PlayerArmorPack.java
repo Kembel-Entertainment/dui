@@ -66,7 +66,7 @@ public final class PlayerArmorPack {
                     + z
                     + "],\"to\":[16,16,"
                     + z
-                    + "],\"shade\":false,\"light_emission\":15,\"faces\":{\"south\":{\"uv\":[0,0,16,16],\"texture\":\""
+                    + "],\"shade_direction_override\":\"up\",\"light_emission\":15,\"faces\":{\"south\":{\"uv\":[0,0,16,16],\"texture\":\""
                     + texture
                     + "\"}}}")
             .getAsJsonObject();

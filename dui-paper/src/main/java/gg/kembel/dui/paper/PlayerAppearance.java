@@ -66,4 +66,25 @@ public final class PlayerAppearance {
   public boolean fallback() {
     return texture == null && (profile == null || profile.getTextures().getSkin() == null);
   }
+
+  public gg.kembel.dui.runtime.PlayerAppearance portable() {
+    var builder = net.kyori.adventure.text.object.ObjectContents.playerHead();
+    if (profile == null || fallback()) builder.texture(texture());
+    else if (profile instanceof net.kyori.adventure.text.object.PlayerHeadObjectContents.SkinSource skin) builder.skin(skin);
+    else {
+      var adapted = org.bukkit.Bukkit.createProfileExact(profile.getUniqueId(), profile.getName());
+      adapted.setTextures(profile.getTextures()); builder.skin(adapted);
+    }
+    return new gg.kembel.dui.runtime.PlayerAppearance(builder.build(), slim(),
+        armor.stream().map(item -> item == null ? null : (gg.kembel.dui.runtime.NativeItem) PaperItem.of(item)).toList());
+  }
+
+  static PlayerAppearance fromPortable(gg.kembel.dui.runtime.PlayerAppearance appearance) {
+    var armor = appearance.armor().stream().map(i -> i == null ? null : ((PaperItem)i).stack()).toList();
+    var head = appearance.head();
+    if (head.texture() != null) return skinResource(head.texture().asString(), appearance.slim(), armor);
+    var profile = org.bukkit.Bukkit.createProfileExact(head.id(), head.name());
+    head.profileProperties().forEach(p -> profile.setProperty(new com.destroystokyo.paper.profile.ProfileProperty(p.name(), p.value(), p.signature())));
+    return new PlayerAppearance(profile, armor);
+  }
 }

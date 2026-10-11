@@ -1,6 +1,6 @@
 # Template and component contracts
 
-Current API: **0.2.0-SNAPSHOT / Paper 26.2 / Java 25**. The DSL is strict XML with a `dui-menu` root, not a browser. Accepted attributes and technical costs are generated in [the component contract](generated/component-contract.md) and [editor JSON](generated/components.json). Skin/extension properties supplement the corresponding component's contract; unknown attributes fail.
+Current API: **0.3.0-SNAPSHOT / Paper 26.3 / Java 25**. The DSL is strict XML with a `dui-menu` root, not a browser. Accepted attributes and technical costs are generated in [the component contract](generated/component-contract.md) and [editor JSON](generated/components.json). Skin/extension properties supplement the corresponding component's contract; unknown attributes fail.
 
 ## Explicit environment and layout
 

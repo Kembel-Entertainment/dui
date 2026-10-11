@@ -125,7 +125,7 @@ Bundling, compression and connection-local appearance masks still run in the nor
 `statistics()` reports submitted/sent/dropped frames, patch bytes, encoding nanoseconds
 and last accepted sequence. Byte counts exclude transport compression and framing overhead.
 Actual client texture uploads, render rate, bandwidth and latency still constrain performance.
-This packet/reflection bridge is pinned to Paper 26.2; test it on version upgrades.
+This packet/reflection bridge is pinned to Paper 26.3; test it on version upgrades.
 Audio transport and arbitrary keyboard/desktop mouse capture are outside this component.
 
 The palette constants and two-probe inverse table can be reproduced against the official

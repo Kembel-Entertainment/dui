@@ -1,4 +1,4 @@
-#moj_import <dui:video-symbols.glsl>
+#include <dui:video-symbols.glsl>
 bool duiVideoVertex(){
  if(textureSize(Sampler0,0)!=ivec2(128)||ProjMat[3][3]>.5)return false;
  if(duiVideoRgb(texelFetch(Sampler0,ivec2(0,0),0))!=5862761u||duiVideoRgb(texelFetch(Sampler0,ivec2(1,0),0))!=7180417u||duiVideoRgb(texelFetch(Sampler0,ivec2(2,0),0))!=8365974u||duiVideoRgb(texelFetch(Sampler0,ivec2(3,0),0))!=4413519u)return false;

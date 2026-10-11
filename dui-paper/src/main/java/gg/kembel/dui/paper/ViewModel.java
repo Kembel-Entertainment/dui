@@ -51,4 +51,20 @@ public record ViewModel(
   public static ViewModel data(Map<String, Object> data) {
     return new ViewModel(data, Map.of(), Map.of(), Map.of());
   }
+
+  public gg.kembel.dui.runtime.ViewModel portable() {
+    var nativeItems = new HashMap<String, gg.kembel.dui.runtime.NativeItem>();
+    items.forEach((key, item) -> nativeItems.put(key, PaperItem.of(item)));
+    var players = new HashMap<String, gg.kembel.dui.runtime.PlayerAppearance>();
+    appearances.forEach((key, appearance) -> players.put(key, appearance.portable()));
+    return new gg.kembel.dui.runtime.ViewModel(data, images, nativeItems, links, players);
+  }
+
+  static ViewModel fromPortable(gg.kembel.dui.runtime.ViewModel model) {
+    var items = new HashMap<String, ItemStack>();
+    model.items().forEach((key, item) -> items.put(key, ((PaperItem)item).stack()));
+    var appearances = new HashMap<String, PlayerAppearance>();
+    model.appearances().forEach((key, appearance) -> appearances.put(key, PlayerAppearance.fromPortable(appearance)));
+    return new ViewModel(model.data(), model.images(), items, model.links(), appearances);
+  }
 }

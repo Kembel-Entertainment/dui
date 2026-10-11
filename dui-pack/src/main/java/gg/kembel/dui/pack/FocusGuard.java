@@ -74,20 +74,20 @@ public final class FocusGuard {
     String source = new String(baseShader(ext, bytes), StandardCharsets.UTF_8);
     if (ext.equals("vsh")) {
       source = source.replace("out vec2 texCoord0;", "out vec2 texCoord0;\n"
-          + "flat out int duiVideoFormat;flat out int duiVideoBackground;"
-          + "flat out ivec2 duiVideoSize;out vec2 duiVideoPoint;\n");
+          + "layout(location = 10) flat out int duiVideoFormat;layout(location = 11) flat out int duiVideoBackground;"
+          + "layout(location = 12) flat out ivec2 duiVideoSize;layout(location = 13) out vec2 duiVideoPoint;\n");
       String helpers = "#ifndef IS_GUI\n"
-          + "#moj_import <dui:video-vertex.glsl>\n#endif\n";
+          + "#include <dui:video-vertex.glsl>\n#endif\n";
       source = source.replace("void main() {", helpers + "void main() {\n"
           + "duiVideoFormat=-1;duiVideoBackground=0;duiVideoSize=ivec2(0);duiVideoPoint=vec2(0);\n"
           + "#ifndef IS_GUI\nif(duiVideoVertex())return;\n#endif\n");
     } else {
-      source = source.replace("out vec4 fragColor;", "out vec4 fragColor;\n"
-          + "flat in int duiVideoFormat;flat in int duiVideoBackground;"
-          + "flat in ivec2 duiVideoSize;in vec2 duiVideoPoint;\n"
-          + "#moj_import <dui:video-fragment.glsl>\n");
+      source = source.replace("uniform sampler2D Sampler0;", "uniform sampler2D Sampler0;\n"
+          + "layout(location = 10) flat in int duiVideoFormat;layout(location = 11) flat in int duiVideoBackground;"
+          + "layout(location = 12) flat in ivec2 duiVideoSize;layout(location = 13) in vec2 duiVideoPoint;\n"
+          + "#include <dui:video-fragment.glsl>\n");
       source = source.replace("void main() {", "void main() {\n"
-          + "if(duiVideoFormat>=0){fragColor=duiVideoPixel();return;}\n");
+          + "if(duiVideoFormat>=0){duiWriteColor(duiVideoPixel(),false);return;}\n");
     }
     return source.getBytes(StandardCharsets.UTF_8);
   }
@@ -96,14 +96,14 @@ public final class FocusGuard {
     if (ext.equals("vsh")) {
       String source = new String(bytes, StandardCharsets.UTF_8);
       String imports =
-          "#moj_import <minecraft:globals.glsl>\n"
-              + "#moj_import <dui:world-map-protocol.glsl>\n"
+          "#include <minecraft:globals.glsl>\n"
+              + "#include <dui:world-map-protocol.glsl>\n"
               + "#if defined(IS_GUI)\n"
-              + "#moj_import <dui:world-map-hud.glsl>\n"
+              + "#include <dui:world-map-hud.glsl>\n"
               + "#else\n"
               + "uniform sampler2D Sampler0;\n"
-              + "#moj_import <dui:world-map-geometry.glsl>\n"
-              + "#moj_import <dui:world-map-scene.glsl>\n"
+              + "#include <dui:world-map-geometry.glsl>\n"
+              + "#include <dui:world-map-scene.glsl>\n"
               + "#endif\n";
       String entry =
           "void main() {\n"
@@ -117,7 +117,7 @@ public final class FocusGuard {
         throw new IOException("Text shader entrypoint changed");
       return source
           .replace("void main() {", imports + entry)
-          .replace("// PLAYER_RENDERERS", "#moj_import <dui:player-renderers.glsl>")
+          .replace("// PLAYER_RENDERERS", "#include <dui:player-renderers.glsl>")
           .getBytes(StandardCharsets.UTF_8);
     }
     if (!ext.equals("fsh")) return bytes;
@@ -127,7 +127,7 @@ public final class FocusGuard {
               "// PLAYER_FUNCTIONS",
               new String(
                   java.util.Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8))
-          .replace("// PLAYER_RENDERERS", "#moj_import <dui:player-renderers.glsl>")
+          .replace("// PLAYER_RENDERERS", "#include <dui:player-renderers.glsl>")
           .getBytes(StandardCharsets.UTF_8);
     }
   }

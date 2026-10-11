@@ -3,8 +3,31 @@ tasks.register('generatePack', JavaExec) {
  dependsOn classes
  classpath = sourceSets.main.runtimeClasspath
  mainClass = 'gg.kembel.dui.pack.PackGenerator'
- doFirst { if(!project.hasProperty('minecraftJar'))throw new GradleException('Pass -PminecraftJar=/path/to/verified/26.2-client.jar'); args project.property('minecraftJar'), layout.buildDirectory.dir('pack').get().asFile.absolutePath }
+ doFirst { if(!project.hasProperty('minecraftJar'))throw new GradleException('Pass -PminecraftJar=/path/to/verified/26.3-client.jar'); args project.property('minecraftJar'), layout.buildDirectory.dir('pack').get().asFile.absolutePath }
 }
 tasks.named('jar') { from(rootProject.file('LICENSE')) { into 'META-INF/dui' }; from(rootProject.file('THIRD_PARTY_NOTICES.md')) { into 'META-INF/dui' } }
 
 tasks.register('componentDocs', JavaExec) { dependsOn classes; classpath=sourceSets.main.runtimeClasspath; mainClass='gg.kembel.dui.pack.ComponentDocumentation'; args rootProject.file('docs/generated').absolutePath }
+
+sourceSets { shaderValidation }
+configurations.shaderValidationImplementation.extendsFrom configurations.implementation
+dependencies {
+    shaderValidationImplementation sourceSets.main.output
+    shaderValidationImplementation 'org.lwjgl:lwjgl:3.4.1'
+    shaderValidationImplementation 'org.lwjgl:lwjgl-shaderc:3.4.1'
+    def os = System.getProperty('os.name').toLowerCase()
+    def arm = System.getProperty('os.arch').contains('aarch64')
+    def classifier = os.contains('mac') ? (arm ? 'natives-macos-arm64' : 'natives-macos') : os.contains('win') ? 'natives-windows' : (arm ? 'natives-linux-arm64' : 'natives-linux')
+    shaderValidationRuntimeOnly "org.lwjgl:lwjgl:3.4.1:${classifier}"
+    shaderValidationRuntimeOnly "org.lwjgl:lwjgl-shaderc:3.4.1:${classifier}"
+}
+tasks.register('verifyClientShaders', JavaExec) {
+    dependsOn shaderValidationClasses
+    classpath = sourceSets.shaderValidation.runtimeClasspath
+    mainClass = 'gg.kembel.dui.pack.VerifyClientShaders'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    doFirst {
+        if (!project.hasProperty('minecraftJar')) throw new GradleException('Pass -PminecraftJar=/path/to/verified/26.3-client.jar')
+        args project.property('minecraftJar'), providers.gradleProperty('shaderPack').getOrElse(layout.buildDirectory.file('pack/dui.zip').get().asFile.absolutePath)
+    }
+}

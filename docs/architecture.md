@@ -2,7 +2,7 @@
 
 A compiled XML template plus read-only data produces a `Canvas`. It contains geometry, text/rectangles, hits, native placements, rasters and typed shader invocations. `RenderEnvironment` carries caller fonts, tokens, skins, glyph bindings and an optional color transformation. No design is chosen implicitly.
 
-`dui-paper` renders this canvas into Adventure text and ordinary Paper dialog bodies. Negative spacing positions glyphs, invisible positive spans own clicks, and native-model wrappers transport placement/motion to the GPU. The resource pack supplies technical fonts, signatures and shared render transport. Consumer GLSL supplies concrete visuals. [Rendering](rendering.md) explains the actual font/packet/GPU contracts.
+`dui-runtime` renders this canvas into Adventure text and portable dialog bodies. `dui-paper` and `dui-minestom` lower the presentation to native packets and entities. Negative spacing positions glyphs, invisible positive spans own clicks, and native-model wrappers transport placement/motion to the GPU. The same resource pack supplies technical fonts, signatures and shared render transport on both hosts. Consumer GLSL supplies concrete visuals. [Rendering](rendering.md) explains the actual font/packet/GPU contracts.
 
 | Library owns | Consumer owns |
 | --- | --- |

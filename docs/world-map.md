@@ -1,6 +1,6 @@
 # In-game world maps
 
-World maps are an optional backend of dui for Paper/Minecraft 26.2 and Java 25. They use the normal first-person camera, not a native dialog. Unmodified clients can look to pan, change hotbar slots to zoom, and click to select. A client mod is used only by the demo's automated tests.
+World maps are an optional backend of dui for Paper/Minecraft 26.3 and Java 25. They use the normal first-person camera, not a native dialog. Unmodified clients can look to pan, change hotbar slots to zoom, and click to select. A client mod is used only by the demo's automated tests.
 
 ## Ownership and public API
 
@@ -68,7 +68,7 @@ The reference yaw is captured when mounting. Projection uses physical framebuffe
 
 One TextDisplay carries the whole visible scene. Every bitmap glyph is followed by `GlyphFont.shift(-advance)` in that map's generated font. The font includes the binary spacing providers; the negative advance cancels the pen movement so subsequent images retain the same camera-relative anchor. Advances come from stamped bitmap widths, never guessed character widths.
 
-The world branch requires perspective projection, R=211, vertex length near one metre and valid texture-corner stamps. G stores zoom; B stores layer index and reduced motion; A carries the opening clock or completion. Texture stamps select the map and corner independently of batched vertex-buffer offsets. Geometry comes from the same definition serialized into metadata. Minecraft 26.2 uses reversed depth, so later layers have greater clip depth.
+The world branch requires perspective projection, R=211, vertex length near one metre and valid texture-corner stamps. G stores zoom; B stores layer index and reduced motion; A carries the opening clock or completion. Texture stamps select the map and corner independently of batched vertex-buffer offsets. Geometry comes from the same definition serialized into metadata. Minecraft 26.3 uses reversed depth, so later layers have greater clip depth.
 
 The GUI branch requires dedicated stamped glyph corners (R=212 for paints/text/icons and R=213 for native HUD covers), ASCII glyphs derived from verified vanilla assets and consumer-contributed glyph PNGs, exact negative advances and integer physical-pixel scaling. Full RGB remains available for application colors; zero-advance font pen metadata transports anchor, opacity and vertical sign. Shared row fonts encode the vertical offset. Templates choose surface transparency and screen anchors. Optional small opaque covers hide the native hotbar/health/experience and bossbar footprint; their color and enablement are template properties. Ordinary vanilla text, dui focus guards and player-skin rendering retain their existing paths. The pack integrates all branches rather than replacing another feature's shader. See `protocol/world-map.json` and run `python3 scripts/generate-world-map-protocol.py --check` after protocol changes.
 

@@ -1,7 +1,7 @@
 // Generic version-three shader invocation transport. No application drawing lives here.
 uint duiShaderRead(int offset,int bits){
-    int word=offset/30,shift=offset%30;uint value=effectWords[word]>>uint(shift);
-    if(shift+bits>30)value|=effectWords[word+1]<<uint(30-shift);
+    int word=offset/30,shift=offset%30;uint value=effectWords[word/4][word%4]>>uint(shift);
+    if(shift+bits>30)value|=effectWords[(word+1)/4][(word+1)%4]<<uint(30-shift);
     return value&((1u<<uint(bits))-1u);
 }
 float duiEase(float u,int easing){if(easing==1)return 1.0-pow(1.0-u,3.0);if(easing==2)return u*u*(3.0-2.0*u);if(easing==3){float v=u-1.0;return 1.0+2.70158*v*v*v+1.70158*v*v;}return u;}

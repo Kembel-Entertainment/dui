@@ -1,6 +1,6 @@
 package gg.kembel.dui.core.video;
 
-/** Minecraft Java 26.2 protocol colors, verified against the official client MapColor table.
+/** Minecraft Java 26.3 protocol colors, verified against the official client MapColor table.
  * These are transport symbols. They do not constrain the source image palette. */
 public final class MapVideoPalette {
   private MapVideoPalette() {}

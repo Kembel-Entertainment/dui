@@ -1,47 +1,48 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Can't moj_import in things used during startup, when resource packs don't exist.
 // This is a copy of dynamicimports.glsl and projection.glsl
 layout(std140) uniform DynamicTransforms {
     mat4 ModelViewMat;
+    mat4 TextureMat;
     vec4 ColorModulator;
     vec3 ModelOffset;
-    mat4 TextureMat;
 };
 layout(std140) uniform Projection {
     mat4 ProjMat;
 };
-// GUI_TEXTURED and the startup pipelines bind Globals in Minecraft 26.2.
+// GUI_TEXTURED and the startup pipelines bind Globals in Minecraft 26.3.
 layout(std140) uniform Globals {
     ivec3 CameraBlockPos;
-    vec3 CameraOffset;
-    vec2 ScreenSize;
     float GlintAlpha;
+    vec3 CameraOffset;
     float GameTime;
+    vec2 ScreenSize;
     int MenuBlurRadius;
     int UseRgss;
 };
 
-in vec3 Position;
-in vec2 UV0;
-in vec4 Color;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec2 UV0;
+layout(location = 2) in vec4 Color;
 uniform sampler2D Sampler0;
 
-flat out int playerArmorFlags;
-out vec2 playerArmorPoint;
-flat out vec2 playerArmorSize;
-out vec2 clipPoint;
-flat out vec4 itemClip;
-out vec2 texCoord0;
-out vec4 vertexColor;
-out vec2 burstPoint;
-flat out vec2 burstBounds;
-flat out vec3 burstItem;
-flat out float burstAge;
-flat out int effectKind;
-flat out int effectFlags;
-flat out int effectCount;
-flat out uint effectWords[20];
+layout(location = 2) flat out int playerArmorFlags;
+layout(location = 3) out vec2 playerArmorPoint;
+layout(location = 4) flat out vec2 playerArmorSize;
+layout(location = 5) out vec2 clipPoint;
+layout(location = 6) flat out vec4 itemClip;
+layout(location = 0) out vec2 texCoord0;
+layout(location = 1) out vec4 vertexColor;
+layout(location = 7) out vec2 burstPoint;
+layout(location = 8) flat out vec2 burstBounds;
+layout(location = 9) flat out vec3 burstItem;
+layout(location = 10) flat out float burstAge;
+layout(location = 11) flat out int effectKind;
+layout(location = 12) flat out int effectFlags;
+layout(location = 13) flat out int effectCount;
+layout(location = 14) flat out uvec4 effectWords[5];
 
 // PROTOCOL
 uint motionCells[48];
@@ -62,7 +63,7 @@ void main() {
     effectKind = 0;
     effectFlags = 0;
     effectCount = 0;
-    for(int i=0;i<20;i++)effectWords[i]=0u;
+    for(int i=0;i<5;i++)effectWords[i]=uvec4(0u);
 
     // Oversized GUI items have their own 48 * GUI-scale square render target.
     // Read only our binary signature. Other menus, world textures and atlas blits pass through.
@@ -137,7 +138,7 @@ void main() {
             vec2 uv=(vec2(float(i%14),float(i/14))*3.0+vec2(4.5))/48.0;
             vec3 rgb=step(threshold,texture(Sampler0,uv).rgb);
             uint cell=uint(rgb.r)|(uint(rgb.g)<<1u)|(uint(rgb.b)<<2u);
-            effectWords[i/10]|=cell<<uint((i%10)*3);
+            effectWords[(i/10)/4][(i/10)%4]|=cell<<uint((i%10)*3);
         }
     }
     burstAge=mod(GameTime*24000.0-started+24000.0,24000.0)/20.0;

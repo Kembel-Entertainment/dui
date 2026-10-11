@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class PackMetadataTest {
   @Test
   void videoOnlyMetadataNeedsSharedHudMetricsButNoMapDefinitions() {
-    var base = TestMetadata.create("26.2", "0.2.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6));
+    var base = TestMetadata.create("26.3", "0.3.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6));
     var gson = new com.google.gson.Gson();
     var json = gson.toJsonTree(base).getAsJsonObject();
     json.getAsJsonArray("capabilities").add(gg.kembel.dui.core.video.MapVideoCodec.CAPABILITY);
@@ -26,7 +26,7 @@ class PackMetadataTest {
     var spec = new ShaderSpec("external:decoration", List.of(ShaderSpec.Parameter.rgb("tint")));
     var base =
         TestMetadata.create(
-            "26.2", "0.2.0-SNAPSHOT", "b".repeat(40), Set.of("minecraft:paper"), Map.of("?", 6));
+            "26.3", "0.3.0-SNAPSHOT", "b".repeat(40), Set.of("minecraft:paper"), Map.of("?", 6));
     var metadata =
         new PackMetadata(
             base.minecraftVersion(),
@@ -62,14 +62,14 @@ class PackMetadataTest {
   void metadataAndDescriptorValidateTheVersionAndStablePackIdentity() {
     var m =
         TestMetadata.create(
-            "26.2", "0.2.0-SNAPSHOT", "a".repeat(40), Set.of("minecraft:paper"), Map.of("?", 6));
+            "26.3", "0.3.0-SNAPSHOT", "a".repeat(40), Set.of("minecraft:paper"), Map.of("?", 6));
     var a = PackDescriptor.of(URI.create("https://example.com/dui.zip"), m);
     assertEquals(a.id(), PackDescriptor.of(URI.create("https://example.com/other.zip"), m).id());
     assertThrows(
         IllegalArgumentException.class,
         () ->
             TestMetadata.create(
-                "1.21", "0.2.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6)));
+                "1.21", "0.3.0-SNAPSHOT", "a".repeat(40), Set.of(), Map.of("?", 6)));
     assertThrows(
         IllegalArgumentException.class,
         () -> PackDescriptor.of(URI.create("file:///tmp/dui.zip"), m));

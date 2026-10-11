@@ -10,11 +10,10 @@ public final class TaskScope implements AutoCloseable {
     UiScheduler.Cancellation cancellation = () -> {};
   }
 
-  private final Thread ownerThread = Thread.currentThread();
+  private final Runnable ownershipCheck;
 
   private void ownerThread() {
-    if (Thread.currentThread() != ownerThread)
-      throw new IllegalStateException("UI scope operation must run on its owner thread");
+    ownershipCheck.run();
   }
 
   private final UiScheduler scheduler;
@@ -27,8 +26,21 @@ public final class TaskScope implements AutoCloseable {
   }
 
   public TaskScope(UiScheduler scheduler, BooleanSupplier valid) {
+    this(scheduler, valid, threadCheck());
+  }
+
+  /** Platforms with movable tick ownership supply their own confinement check. */
+  public TaskScope(UiScheduler scheduler, BooleanSupplier valid, Runnable ownershipCheck) {
     this.scheduler = Objects.requireNonNull(scheduler);
     this.valid = Objects.requireNonNull(valid);
+    this.ownershipCheck = Objects.requireNonNull(ownershipCheck);
+  }
+
+  private static Runnable threadCheck() {
+    Thread owner = Thread.currentThread();
+    return () -> {
+      if (Thread.currentThread() != owner) throw new IllegalStateException("UI scope operation must run on its owner thread");
+    };
   }
 
   private Job replace(String key) {

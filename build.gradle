@@ -1,8 +1,14 @@
 plugins { id 'base' }
 allprojects {
     group = 'gg.kembel.dui'
-    version = '0.2.0-SNAPSHOT'
+    version = '0.3.0-SNAPSHOT'
     repositories { mavenCentral(); maven { url = 'https://repo.papermc.io/repository/maven-public/' } }
+}
+ext {
+    minecraftVersion = '26.3'
+    paperVersion = '26.3.build.170-beta'
+    minestomVersion = '26_3-20261007.224755-10'
+    adventureVersion = '5.2.0'
 }
 subprojects {
     apply plugin: 'java-library'

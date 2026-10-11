@@ -163,8 +163,8 @@ public final class PackGenerator {
     result.put("protocolVersion", RendererProtocol.VERSION);
     result.put("capabilities", capabilities);
     result.put("codecHash", RendererProtocol.SCHEMA_SHA256);
-    result.put("minecraftVersion", "26.2");
-    result.put("libraryVersion", "0.2.0-SNAPSHOT");
+    result.put("minecraftVersion", MinecraftTarget.VERSION);
+    result.put("libraryVersion", MinecraftTarget.LIBRARY_VERSION);
     result.put("sha1", sha1);
     result.put("models", models);
     result.put("shaders", shaders);

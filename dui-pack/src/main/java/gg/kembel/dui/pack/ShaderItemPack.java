@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.zip.*;
 import javax.imageio.ImageIO;
 
-/** 26.2 native model wrappers. The 48px frame carries binary layout data outside the 36px item. */
+/** 26.3 native model wrappers. The 48px frame carries binary layout data outside the 36px item. */
 public final class ShaderItemPack {
   public static final int DATA_INDEX = 32;
   private static final Gson JSON = new Gson();
@@ -50,7 +50,7 @@ public final class ShaderItemPack {
                         effects.stream().map(PackContribution.Shader::specification).toList()),
                     modules));
       return source
-          .replace("// PLAYER_RENDERERS", "#moj_import <dui:player-renderers.glsl>")
+          .replace("// PLAYER_RENDERERS", "#include <dui:player-renderers.glsl>")
           .getBytes(StandardCharsets.UTF_8);
     }
   }
@@ -228,7 +228,7 @@ public final class ShaderItemPack {
     var element = new JsonObject();
     element.add("from", JSON.toJsonTree(new int[] {x0, y0, 8}));
     element.add("to", JSON.toJsonTree(new int[] {x1, y1, 8}));
-    element.addProperty("shade", false);
+    element.addProperty("shade_direction_override", "up");
     element.addProperty("light_emission", 15);
     var face = new JsonObject();
     face.addProperty("texture", "#" + texture);

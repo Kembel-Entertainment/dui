@@ -1,8 +1,11 @@
 # dui
 
-> Work in Progress template-driven UI library for Paper 26.2, Java 25 and unmodified Minecraft clients. Namespace: gg.kembel.dui. Built by Kembel Entertainment (https://kembel.gg).
+> Work in Progress template-driven UI library for Paper and Minestom, Minecraft 26.3, Java 25 and unmodified clients. Namespace: gg.kembel.dui. Built by Kembel Entertainment (https://kembel.gg).
 
 ## Documentation
+
+- [Migration to 0.3](docs/migration-0.3.md): Minecraft 26.3, pack rebuild, preserved Paper facade and portable runtime extraction.
+- [Minestom and portable menus](docs/minestom.md): Pinned 26.3 snapshot, native resource boundaries, shared presentation and player ownership.
 
 - [Extensions](docs/extensions.md): Consumer-owned typed components/defaults, skins, glyphs and trusted shader contributions; no domain library edits.
 - [Migration to 0.2](docs/migration-0.2.md): Breaking ownership/API/pack changes and replacement examples.

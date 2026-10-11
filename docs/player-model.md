@@ -1,6 +1,6 @@
 # GPU player model component
 
-`dui-player-model` is a WIP full-body, orthographic cuboid renderer for vanilla Minecraft **26.2** on Paper. It uses the shared pack shaders and live native player-profile glyphs, not baked skin images. Clients need the generated DUI resource pack, with capability `player-model-v2`. No client mod is needed.
+`dui-player-model` is a WIP full-body, orthographic cuboid renderer for vanilla Minecraft **26.3** on Paper. It uses the shared pack shaders and live native player-profile glyphs, not baked skin images. Clients need the generated DUI resource pack, with capability `player-model-v2`. No client mod is needed.
 
 ## Minimal consumer
 

@@ -1,4 +1,4 @@
-#moj_import <dui:video-symbols.glsl>
+#include <dui:video-symbols.glsl>
 vec4 duiVideoPixel(){
  if(duiVideoFormat==2){uint c=uint(duiVideoBackground);return vec4(vec3(float(c>>16u),float((c>>8u)&255u),float(c&255u))/255.0,1);}
  ivec2 p=ivec2(clamp(floor(duiVideoPoint),vec2(0),vec2(duiVideoSize)-vec2(1)));

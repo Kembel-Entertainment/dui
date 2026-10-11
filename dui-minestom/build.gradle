@@ -1,0 +1,17 @@
+repositories {
+    maven {
+        url = 'https://central.sonatype.com/repository/maven-snapshots/'
+        content { includeModule('net.minestom', 'minestom'); includeModule('net.minestom', 'testing') }
+    }
+}
+dependencies {
+    api project(':dui-runtime')
+    compileOnly "net.minestom:minestom:${rootProject.minestomVersion}"
+    testImplementation "net.minestom:minestom:${rootProject.minestomVersion}"
+    testImplementation "net.minestom:testing:${rootProject.minestomVersion}"
+}
+test { systemProperty 'minestom.inside-test', 'true' }
+tasks.named('jar') {
+    from(rootProject.file('LICENSE')) { into 'META-INF/dui' }
+    from(rootProject.file('THIRD_PARTY_NOTICES.md')) { into 'META-INF/dui' }
+}

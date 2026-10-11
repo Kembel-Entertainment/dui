@@ -67,7 +67,7 @@ public final class CanvasPack {
       put(
           zip,
           "pack.mcmeta",
-          "{\"pack\":{\"description\":\"dui / Vanilla UI\",\"min_format\":88,\"max_format\":88}}"
+          "{\"pack\":{\"description\":\"dui / Vanilla UI\",\"min_format\":[97,1],\"max_format\":[97,1]}}"
               .getBytes(StandardCharsets.UTF_8));
       put(zip, "assets/dui/font/text.json", assets.fontDefinition());
       var fontResources = new TreeMap<String, byte[]>();

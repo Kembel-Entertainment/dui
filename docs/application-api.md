@@ -5,11 +5,13 @@ Use these contracts for a new menu. Negative spacing, model wrappers and wire fi
 ## Dependencies and ownership
 
 ```groovy
-implementation 'gg.kembel.dui:dui-paper:0.2.0-SNAPSHOT'
- testImplementation 'gg.kembel.dui:dui-test:0.2.0-SNAPSHOT'
+implementation 'gg.kembel.dui:dui-paper:0.3.0-SNAPSHOT'
+ testImplementation 'gg.kembel.dui:dui-test:0.3.0-SNAPSHOT'
 ```
 
-`dui-core` has no Paper or HTTP dependency. `dui-paper` manages callbacks, main-thread presentation and lifecycle. `dui-pack` is build tooling; keep it out of the application runtime. `dui-test` contains portable test helpers, without JUnit or Paper in its runtime contract.
+`dui-core` has no Paper or HTTP dependency. `dui-runtime` manages portable presentation, callbacks, tasks, pack readiness and session lifecycle. `dui-paper` and `dui-minestom` supply native values, dialogs, entities and scheduling. `dui-pack` is build tooling; keep it out of the application runtime. `dui-test` contains portable test helpers, without JUnit or Paper in its runtime contract.
+
+The examples below retain the Paper facade. For one implementation on both hosts, import the matching presentation types from `gg.kembel.dui.runtime` and pass `adapter.runtime()` plus `adapter.viewer(player)`. See [Minestom and portable menus](minestom.md) for the complete ownership and embedding contract.
 
 Permission checks, bets, balances, hidden cards, persistence, bot decisions, pack hosting and network policy remain application-owned. A disabled control is presentation, not authorization.
 

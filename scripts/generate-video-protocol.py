@@ -29,7 +29,7 @@ def emit(path,content):
  else:path.write_text(content)
 emit(f,'''package gg.kembel.dui.core.video;
 
-/** Minecraft Java 26.2 protocol colors, verified against the official client MapColor table.
+/** Minecraft Java 26.3 protocol colors, verified against the official client MapColor table.
  * These are transport symbols. They do not constrain the source image palette. */
 public final class MapVideoPalette {
   private MapVideoPalette() {}
@@ -66,4 +66,4 @@ uint duiVideoRgb(vec4 p){uvec3 c=uvec3(round(p.rgb*255.0));return (c.r<<16u)|(c.
 int duiVideoSymbol(vec4 p){uint c=duiVideoRgb(p);uint a=duiVideoSymbols[duiVideoMix(c)&511u];if((a&0xffffffu)==c)return int(a>>24u);a=duiVideoSymbols[duiVideoMix(c^0x9e3779b9u)&511u];return (a&0xffffffu)==c?int(a>>24u):-1;}
 int duiVideoWord(int at,int n){int v=0;for(int i=n-1;i>=0;i--)v=v*192+duiVideoSymbol(texelFetch(Sampler0,ivec2(at+i,0),0));return v;}
 ''')
-print('PASS 26.2 palette + bounded shader symbol lookup')
+print('PASS 26.3 palette + bounded shader symbol lookup')

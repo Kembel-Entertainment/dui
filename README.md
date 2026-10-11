@@ -1,13 +1,15 @@
 # dui
 
-**Work in progress.** A design-neutral, template-driven UI library for Paper 26.2 / Java 25 and unmodified Minecraft clients. Built by [Kembel Entertainment](https://kembel.gg); packages and Maven group: `gg.kembel.dui`.
+**Work in progress.** A design-neutral, template-driven UI library for Paper and Minestom, Minecraft 26.3 / Java 25 and unmodified clients. Built by [Kembel Entertainment](https://kembel.gg); packages and Maven group: `gg.kembel.dui`.
 
 Applications own their designs, components, assets and rules. The library provides layout, rendering, generic control behavior, native models, animation transport, sessions and input. A playing card, wheel, equipment slot or gift animation is an application component. None is bundled in the library.
 
 | Module | Responsibility |
 | --- | --- |
 | `dui-core` | XML templates, typed properties, layout, skins, glyph/shader contracts, motion, resources, world-map geometry |
-| `dui-paper` | Pack readiness, Adventure rendering, dialogs, native items/skins, callbacks, camera-map input and lifecycle |
+| `dui-runtime` | Shared Adventure rendering, portable dialogs/inputs, pack readiness, callbacks, UI tasks, camera-map and video sessions |
+| `dui-paper` | Paper native dialogs, items/profiles, main-thread scheduling, entities and packet transport; existing public facade |
+| `dui-minestom` | Minestom native dialogs, items/profiles, player ownership, private entities and packet transport |
 | `dui-pack` | Verified vanilla input, font bands, native-model wrappers, consumer asset/shader compilation, deterministic pack metadata |
 | `dui-test` | Render assertions, fake scheduler and portable consumer test harness |
 
@@ -20,14 +22,16 @@ The separate [dui-demo](https://github.com/Kembel-Entertainment/dui-demo) owns a
 ./gradlew publishToMavenLocal
 ```
 
-Java 25 is required. Unit builds do not start Minecraft. No public Maven release exists yet; embed `gg.kembel.dui:dui-paper:0.2.0-SNAPSHOT` and its runtime dependencies in your own plugin. Paper/Adventure remain server-provided. Use `dui-pack` only at build time.
+Java 25 is required. Unit builds do not start Minecraft. No public Maven release exists yet; embed `gg.kembel.dui:dui-paper:0.3.0-SNAPSHOT` and its runtime dependencies in your own plugin. Paper/Adventure remain server-provided. Use `dui-pack` only at build time.
 
-Start with [quickstart](docs/quickstart.md), then [extensions](docs/extensions.md), [application APIs](docs/application-api.md) and [components](docs/components.md). Supply [the LLM guide](docs/llm-guide.md) and [llms.txt](llms.txt) to a coding agent. Existing consumers must follow [the 0.2 migration](docs/migration-0.2.md).
+Start with [Paper quickstart](docs/quickstart.md) or [Minestom and portable menus](docs/minestom.md), then [extensions](docs/extensions.md), [application APIs](docs/application-api.md) and [components](docs/components.md). Supply [the LLM guide](docs/llm-guide.md) and [llms.txt](llms.txt) to a coding agent. Existing consumers must follow [the 0.3 migration](docs/migration-0.3.md).
+
+The current port's build, actual-client and Studio checks are recorded in [26.3 verification](docs/verification-26.3.md).
 
 ## Pack contract
 
 ```sh
-./gradlew :dui-pack:generatePack -PminecraftJar=/path/to/verified/minecraft-26.2-client.jar
+./gradlew :dui-pack:generatePack -PminecraftJar=/path/to/verified/minecraft-26.3-client.jar
 ```
 
 The bare generator builds technical rendering assets, with no design preset. To add your glyphs, shader components, models or map imagery, call `PackGenerator.generate(clientJar, ownAssets, output, contributions)`. Deploy the generated ZIP and matching `dui.json` together and host the ZIP yourself. Runtime image pixels and ordinary template changes do not need a pack rebuild.
@@ -46,6 +50,6 @@ Renderer and world-map protocols are version 4. Parameter schemas, addresses, ge
 
 Technical geometry, signatures, units and capacity limits remain fixed to the supported Minecraft version. These are renderer contracts, not application design. Details and validation limits are in [rendering](docs/rendering.md), [world maps](docs/world-map.md), and [compatibility](docs/compatibility.md). Code is [MIT](LICENSE); see [third-party notices](THIRD_PARTY_NOTICES.md) for vanilla-derived build inputs.
 
-See [dynamic composition](docs/dynamic-composition.md) for measured/typed components, shared group geometry, RGBA/fonts, keyframes, runtime map layers, registered model cameras and trusted Paper backend extensions. Renderer/world-map protocol 4 packs must be rebuilt together with metadata.
+See [dynamic composition](docs/dynamic-composition.md) for measured/typed components, shared group geometry, RGBA/fonts, keyframes, runtime map layers, registered model cameras and trusted backend extensions. Renderer/world-map protocol 4 packs must be rebuilt together with metadata.
 
 Experimental dynamic pixel streaming: [video surfaces](docs/video-surfaces.md).
